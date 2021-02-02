@@ -1,0 +1,15 @@
+#Extensions
+
+*.npz
+__pycache__/
+/.vscode
+/.env
+*.jpg
+*.png
+
+#Files
+vit_jax/ilsvrc2012_wordnet_lemmas.txt
+.style.yapf
+
+#Folders
+vit_jax/logs/
