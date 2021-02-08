@@ -169,6 +169,7 @@ def save(data, path):
   # temporal file and then move to actual path name.
   path_tmp = path + '-TEMPORARY'
   gfile.makedirs(os.path.dirname(path))
+
   with gfile.GFile(path_tmp, 'wb') as f:
     f.write(io_buffer.getvalue())
   gfile.rename(path_tmp, path, overwrite=True)

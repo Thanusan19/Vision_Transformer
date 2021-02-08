@@ -6,13 +6,6 @@ import numpy as np
 import tqdm
 import PIL
 
-#from checkpoint import *
-#from input_pipeline import *
-#from models import *
-#from momentum_clip import *
-#from train import *
-#from hyper import *
-
 import checkpoint
 import input_pipeline
 import models
@@ -20,6 +13,9 @@ import momentum_clip
 import train
 import hyper
 import logging_ViT
+import flax.jax_utils as flax_utils
+
+
 # Shows the number of available devices.
 # In a CPU/GPU runtime this will be a single device.
 jax.local_devices()
@@ -28,7 +24,8 @@ jax.local_devices()
 model = 'ViT-B_16'
 
 logger = logging_ViT.setup_logger('./logs')
-
+INFERENCE = True
+FINE_TUNE = False
 
 
 # Helper functions for images.
@@ -66,14 +63,19 @@ def show_img_grid(imgs, titles):
     img = (img + 1) / 2  # Denormalize
     show_img(img, axs[i // n][i % n], title)
 
+def print_banner(message):
+  print("\n###################################")
+  print(message)
+  print("###################################\n")
 
 ##############
 #LOAD DATASET#
 ##############
 
+print_banner("LOAD DATASET")
 
 dataset = 'cifar10'
-batch_size = 512  # Reduce to 256 if running on a single GPU.
+batch_size = 64  #256  # 512 --> Reduce to 256 if running on a single GPU.
 
 
 # Note the datasets are configured in input_pipeline.DATASET_PRESETS
@@ -99,7 +101,7 @@ batch['image'].shape
 # Show some imags with their labels.
 images, labels = batch['image'][0][:9], batch['label'][0][:9]
 titles = map(make_label_getter(dataset), labels.argmax(axis=1))
-show_img_grid(images, titles)
+#show_img_grid(images, titles)
 
 
 # Same as above, but with train images.
@@ -109,7 +111,7 @@ show_img_grid(images, titles)
 batch = next(iter(ds_train.as_numpy_iterator()))
 images, labels = batch['image'][0][:9], batch['label'][0][:9]
 titles = map(make_label_getter(dataset), labels.argmax(axis=1))
-show_img_grid(images, titles)
+#show_img_grid(images, titles)
 
 
 
@@ -117,6 +119,7 @@ show_img_grid(images, titles)
 #LOAD PRE-TRAINED MODEL#
 ########################
 
+print_banner("LOAD PRE-TRAINED MODEL")
 
 # Load model definition & initialize random parameters.
 VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=num_classes)
@@ -145,6 +148,8 @@ params = checkpoint.load_pretrained(
 ################################################
 #EVALUATE PRE-TRAINED MODEL BEFORE FINE-TUNNING#
 ################################################
+
+print_banner("EVALUATE PRE-TRAINED MODEL BEFORE FINE-TUNNING")
 
 # So far, all our data is in the host memory. Let's now replicate the arrays
 # into the devices.
@@ -177,32 +182,95 @@ def get_accuracy(params_repl):
 
 
 # Random performance without fine-tuning.
-#get_accuracy(params_repl)
+if 0:
+  acc = get_accuracy(params_repl)
+  print("Accuracy of the pre-trained model before fine-tunning : ", acc)
 
+###########
+#FINE-TUNE#
+###########
+
+if FINE_TUNE :
+
+  print_banner("FINE-TUNE")
+
+  # 100 Steps take approximately 15 minutes in the TPU runtime.
+  total_steps = 2
+  warmup_steps = 5
+  decay_type = 'cosine'
+  grad_norm_clip = 1
+  # This controls in how many forward passes the batch is split. 8 works well with
+  # a TPU runtime that has 8 devices. 64 should work on a GPU. You can of course
+  # also adjust the batch_size above, but that would require you to adjust the
+  # learning rate accordingly.
+  accum_steps = 64 #8
+  base_lr = 0.03
+
+
+  # Check out train.make_update_fn in the editor on the right side for details.
+  update_fn_repl = train.make_update_fn(VisionTransformer.call, accum_steps)
+  # We use a momentum optimizer that uses half precision for state to save
+  # memory. It als implements the gradient clipping.
+  opt = momentum_clip.Optimizer(grad_norm_clip=grad_norm_clip).create(params)
+  opt_repl = flax.jax_utils.replicate(opt)
+
+
+  lr_fn = hyper.create_learning_rate_schedule(total_steps, base_lr, decay_type, warmup_steps)
+  # Prefetch entire learning rate schedule onto devices. Otherwise we would have
+  # a slow transfer from host to devices in every step.
+  lr_iter = hyper.lr_prefetch_iter(lr_fn, 0, total_steps)
+  # Initialize PRNGs for dropout.
+  update_rngs = jax.random.split(jax.random.PRNGKey(0), jax.local_device_count())
+
+
+  # The world's simplest training loop.
+  # Completes in ~20 min on the TPU runtime.
+  for step, batch, lr_repl in zip(
+      tqdm.trange(1, total_steps + 1),
+      ds_train.as_numpy_iterator(),
+      lr_iter
+  ):
+
+    opt_repl, loss_repl, update_rngs = update_fn_repl(
+        opt_repl, lr_repl, batch, update_rngs)
+
+  if 1 :
+    acc = get_accuracy(opt_repl.target)
+    print("Accuracy of the pre-trained model after fine-tunning", acc)
+
+
+  #print("Save Checkpoints :")
+  #checkpoint.save(flax_utils.unreplicate(opt_repl.target), "/home/gpu_user/VisionTransformer/vision_transformer/models/")
 
 
 ###########
 #INFERENCE#
 ###########
 
-VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=1000)
-# Load and convert pretrained checkpoint.
-params = checkpoint.load(f'{model}_imagenet2012.npz')
-params['pre_logits'] = {}  # Need to restore empty leaf for Flax.
+if INFERENCE :
+  print_banner("INFERENCE")
+
+  VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=1000)
+
+  # Load and convert pretrained checkpoint.
+  params = checkpoint.load(f'{model}_imagenet2012.npz')
+  #params = opt_repl.target
+  #params = checkpoint.load('../models/model_save_1.npz')
+  params['pre_logits'] = {}  # Need to restore empty leaf for Flax.
 
 
-# Get imagenet labels.
-imagenet_labels = dict(enumerate(open('ilsvrc2012_wordnet_lemmas.txt')))
+  # Get imagenet labels.
+  imagenet_labels = dict(enumerate(open('ilsvrc2012_wordnet_lemmas.txt')))
 
 
-# Get a random picture with the correct dimensions.
-img = PIL.Image.open('picsum.jpg')
+  # Get a random picture with the correct dimensions.
+  img = PIL.Image.open('picsum.jpg')
 
 
-# Predict on a batch with a single item
-logits, = VisionTransformer.call(params, (np.array(img) / 128 - 1)[None, ...])
+  # Predict on a batch with a single item
+  logits, = VisionTransformer.call(params, (np.array(img) / 128 - 1)[None, ...])
 
 
-preds = flax.nn.softmax(logits)
-for idx in preds.argsort()[:-11:-1]:
-  print(f'{preds[idx]:.5f} : {imagenet_labels[idx]}', end='')
+  preds = flax.nn.softmax(logits)
+  for idx in preds.argsort()[:-11:-1]:
+    print(f'{preds[idx]:.5f} : {imagenet_labels[idx]}', end='')
