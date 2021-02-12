@@ -25,7 +25,7 @@ model = 'ViT-B_16'
 
 logger = logging_ViT.setup_logger('./logs')
 INFERENCE = True
-FINE_TUNE = False
+FINE_TUNE = True
 
 
 # Helper functions for images.
@@ -195,7 +195,7 @@ if FINE_TUNE :
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  total_steps = 2
+  total_steps = 100
   warmup_steps = 5
   decay_type = 'cosine'
   grad_norm_clip = 1
@@ -239,8 +239,8 @@ if FINE_TUNE :
     print("Accuracy of the pre-trained model after fine-tunning", acc)
 
 
-  #print("Save Checkpoints :")
-  #checkpoint.save(flax_utils.unreplicate(opt_repl.target), "/home/gpu_user/VisionTransformer/vision_transformer/models/")
+  print("Save Checkpoints :")
+  checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_save_1.npz")
 
 
 ###########
@@ -250,21 +250,21 @@ if FINE_TUNE :
 if INFERENCE :
   print_banner("INFERENCE")
 
-  VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=1000)
+  #VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=1000)
+  VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=10)
+
 
   # Load and convert pretrained checkpoint.
-  params = checkpoint.load(f'{model}_imagenet2012.npz')
-  #params = opt_repl.target
-  #params = checkpoint.load('../models/model_save_1.npz')
+  #params = checkpoint.load(f'{model}_imagenet2012.npz')
+  params = checkpoint.load('../models/model_save_1.npz')
   params['pre_logits'] = {}  # Need to restore empty leaf for Flax.
 
 
   # Get imagenet labels.
   imagenet_labels = dict(enumerate(open('ilsvrc2012_wordnet_lemmas.txt')))
 
-
   # Get a random picture with the correct dimensions.
-  img = PIL.Image.open('picsum.jpg')
+  img = PIL.Image.open('picsum_1.jpg')
 
 
   # Predict on a batch with a single item
@@ -272,5 +272,9 @@ if INFERENCE :
 
 
   preds = flax.nn.softmax(logits)
-  for idx in preds.argsort()[:-11:-1]:
-    print(f'{preds[idx]:.5f} : {imagenet_labels[idx]}', end='')
+  # for idx in preds.argsort()[:-11:-1]:
+  #   print(f'{preds[idx]:.5f} : {imagenet_labels[idx]}', end='')
+
+  print("Predictions : ", preds)
+  print("airplane , automobile, bird, cat, deer, dog, frog, horse, ship, truck")
+

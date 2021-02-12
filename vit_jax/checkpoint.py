@@ -167,12 +167,12 @@ def save(data, path):
 
   # In order to be robust to interruptions we first save checkpoint to the
   # temporal file and then move to actual path name.
-  path_tmp = path + '-TEMPORARY'
+  path_tmp = path  #+ '-TEMPORARY'
   gfile.makedirs(os.path.dirname(path))
 
   with gfile.GFile(path_tmp, 'wb') as f:
     f.write(io_buffer.getvalue())
-  gfile.rename(path_tmp, path, overwrite=True)
+  #gfile.rename(path_tmp, path, overwrite=True)
 
 
 def load(path):

@@ -15,3 +15,4 @@ vit_jax/-TEMPORARY
 #Folders
 vit_jax/logs/
 models/*
+data/*
