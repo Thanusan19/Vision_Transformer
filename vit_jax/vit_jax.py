@@ -15,6 +15,11 @@ import hyper
 import logging_ViT
 import flax.jax_utils as flax_utils
 
+from os.path import dirname
+sys.path.append(dirname('/home/GPU/tsathiak/local_storage/Vision_Transformer/'))
+from ViT_python_generator import MyDogsCats 
+import tensorflow as tf
+
 
 # Shows the number of available devices.
 # In a CPU/GPU runtime this will be a single device.
@@ -68,27 +73,66 @@ def print_banner(message):
   print(message)
   print("###################################\n")
 
+def _shard(data):
+  data['image'] = tf.reshape(data['image'], [num_devices, -1, 384, 384, 3])
+  data['label'] = tf.reshape(data['label'], [num_devices, -1, 2])
+  return data
+
 ##############
 #LOAD DATASET#
 ##############
+"""
+DATASET = 0 --> CIFAR-10 dataset
+DATASET = 1 --> DOG_CAT dataset
+"""
+DATASET = 1
+batch_size = 128  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
 
-print_banner("LOAD DATASET")
 
-dataset = 'cifar10'
-batch_size = 64  #256  # 512 --> Reduce to 256 if running on a single GPU.
+if(DATASET==0):
+   print_banner("LOAD DATASET : CIFAR-10")
 
+   dataset = 'cifar10'
 
-# Note the datasets are configured in input_pipeline.DATASET_PRESETS
-# Have a look in the editor at the right.
-num_classes = input_pipeline.get_dataset_info(dataset, 'train')['num_classes']
-# tf.data.Datset for training, infinite repeats.
-ds_train = input_pipeline.get_data(
-    dataset=dataset, mode='train', repeats=None, batch_size=batch_size,
-)
-# tf.data.Datset for evaluation, single repeat.
-ds_test = input_pipeline.get_data(
-    dataset=dataset, mode='test', repeats=1, batch_size=batch_size,
-)
+   # Note the datasets are configured in input_pipeline.DATASET_PRESETS
+   # Have a look in the editor at the right.
+   num_classes = input_pipeline.get_dataset_info(dataset, 'train')['num_classes']
+   # tf.data.Datset for training, infinite repeats.
+   ds_train = input_pipeline.get_data(
+       dataset=dataset, mode='train', repeats=None, batch_size=batch_size,
+   )
+   # tf.data.Datset for evaluation, single repeat.
+   ds_test = input_pipeline.get_data(
+       dataset=dataset, mode='test', repeats=1, batch_size=batch_size,
+   )
+
+else:
+   print_banner("LOAD DATASET : CATS and DOGS")
+
+   num_devices = len(jax.local_devices())
+
+   # The bypass
+   num_classes = 2
+   dataset = 'dogscats'
+   dgscts_train = MyDogsCats(ds_description_path='dataset/CatsAndDogs/description.txt',
+                    dataset_path='dataset/CatsAndDogs',
+                    set_type='train',
+                    train_prop=0.8)
+   dgscts_test = MyDogsCats(ds_description_path='dataset/CatsAndDogs/description.txt',
+                    dataset_path='dataset/CatsAndDogs',
+                    set_type='test',
+                    train_prop=0.8)
+
+   ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
+   ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
+
+   if num_devices is not None:
+     ds_train = ds_train.map(_shard, tf.data.experimental.AUTOTUNE)
+     ds_test = ds_test.map(_shard, tf.data.experimental.AUTOTUNE)
+
+   ds_test = ds_test.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+   ds_train = ds_train.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+
 
 
 # Fetch a batch of test images for illustration purposes.
@@ -203,7 +247,7 @@ if FINE_TUNE :
   # a TPU runtime that has 8 devices. 64 should work on a GPU. You can of course
   # also adjust the batch_size above, but that would require you to adjust the
   # learning rate accordingly.
-  accum_steps = 64 #8
+  accum_steps = 64  #64--> GPU3  #8--> TPU
   base_lr = 0.03
 
 

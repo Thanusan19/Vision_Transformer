@@ -1,0 +1,193 @@
+from pathlib import Path
+import re
+
+import time
+
+
+###################################################################
+#Functions to create the exclusion list and the global description#
+###################################################################
+
+def checkExistanceAndEmptiness(output_file_path:str, doOverwrite:bool):
+  okayToOverwrite = True
+  output_path = Path(output_file_path)
+  if output_path.exists():
+    print('File exists')
+    if output_path.stat().st_size != 0:
+      print('File is not empty')
+      if not doOverwrite:
+        okayToOverwrite = False
+        print('not over-writing')
+      else:
+        mode = 'w+'
+        print('over-writing')
+      
+    else:
+      print('File is empty')
+      mode = 'w+'
+
+  else:
+    print('File don\'t exist')
+    mode = 'w'
+  return mode, okayToOverwrite
+
+def createExclusionFile(dataset_dir_path:str, mogrify_output_file_path:str,
+                        output_file_path:str, doOverwrite:bool=False):
+  """
+  dataset_dir_path le chemin d'accès au dossier du dataset
+  output_file_path le chemin du fichier que l'on veut créer
+  doOverwrite permet d'écraser le fichier, si il existe déjà, si le paramètre
+    est passé à True (False par defaut).
+  """
+  print
+
+  # Check if file exists or not and gives the write or write and read depending,
+  # as well as the bolean to overwrite or not the file
+  mode, okayToOverwrite = checkExistanceAndEmptiness(output_file_path, doOverwrite)
+
+  dataset_path = Path(dataset_dir_path)
+  output_path = Path(output_file_path)
+  print(dataset_path)
+  if okayToOverwrite:
+    with output_path.open(mode) as outfile:
+      #writing in the file
+
+      # Lecture du fichier d'exclusion
+      mogrify_output = Path(mogrify_output_file_path)
+      regex_files = re.compile('dataset/.*/[0-9]*.jpg')
+
+      added_lines = []
+      with mogrify_output.open('r') as infile:
+          for line in infile.readlines():
+              # time.sleep(1)
+              if line.endswith("\n"):
+                  line = line[:-1]
+
+                  first_match = regex_files.findall(line)[0]
+                  first_path = Path(first_match)
+                  string = str(first_path.relative_to(dataset_path))
+                  # string = first_match.replace(str(dataset_path)+"/", "")
+                  
+                  if string not in added_lines:
+                    outfile.write(string+"\n")
+                    added_lines.append(string)
+
+def createGlobalDescription(dataset_dir_path:str, exclude_img_file_path:str,
+                           output_file_path:str, doOverwrite:bool=False):
+  """
+  Va generer le fichier de tout le dataset
+  dataset_dir_path le chemin d'accès au dossier du dataset
+  exclude_img_file_path le chemin d'accès d'un fichier d'exclusion de fichiers
+    corrompus dans la liste. De la forme :
+      path/vers/le/fichier1.jpg
+      path/vers/le/fichier2.jpg
+      path/vers/le/fichier3.jpg
+      path/vers/le/fichier4.jpg
+  output_file_path le chemin du fichier que l'on veut créer
+  doOverwrite permet d'écraser le fichier, si il existe déjà, si le paramètre
+    est passé à True (False par defaut).
+  """
+
+  # Lecture du fichier d'exclusion
+  exclude_path = Path(exclude_img_file_path)
+  exclude_img_list = []
+  with exclude_path.open('r') as file:
+      for line in file.readlines():
+          if line.endswith("\n"):
+              line = line[:-1]
+              line = str(Path(line)) # To be able to compare it to other file path
+              #print("exclude file line :", line)
+          
+          exclude_img_list.append(line)
+  print("exclude_img_list", exclude_img_list)
+
+  # Compter celui qui a le plus d'exclus, pour en avoir le même nombre de
+  # chaque coté
+  count_cat = 0; count_dog = 0
+  for exclude_file in exclude_img_list:
+    #print("Cat or Dog ?", exclude_file.split("/")[-2])
+    if exclude_file.split("/")[-2] == 'Cat':
+      count_cat += 1
+    else:
+      count_dog += 1
+  print("count_cat", count_cat, "count_dog", count_dog)
+  left_to_exclude_dogs = count_cat-count_dog if count_cat >= count_dog else 0
+  left_to_exclude_cats = count_dog-count_cat if count_dog >= count_cat else 0
+
+  # Check if file exists or not and gives the write or write and read depending,
+  # as well as the bolean to overwrite or not the file
+  mode, okayToOverwrite = checkExistanceAndEmptiness(output_file_path, doOverwrite)
+
+  output_path = Path(output_file_path)
+  # Ecriture du fichier
+  if okayToOverwrite:
+    with output_path.open(mode) as file:
+      #writing in the file
+      ds_dir_path = Path(dataset_dir_path)
+      #print("ds_dir_path", ds_dir_path)
+
+      class_num = -1
+      for class_dir in ds_dir_path.joinpath("PetImages").iterdir():
+        if class_dir.is_dir():
+          class_num += 1
+          print("  class_dir", class_dir)
+          print("  class_num", class_num)
+
+          if str(class_dir).endswith('Cat'):
+            left_to_exclude_count = left_to_exclude_cats
+            print("  left_to_exclude_count for Cats is :", left_to_exclude_count)
+          else:
+            left_to_exclude_count = left_to_exclude_dogs
+            print("  left_to_exclude_count for Dogs is :", left_to_exclude_count)
+
+          added_count = 0
+          for class_img in class_dir.iterdir():
+            if class_img.match('[0-9]*.jpg'):
+              
+              local_image_path = class_img.relative_to(ds_dir_path)
+              # Check for exclusion
+
+
+              #print("class_img:", class_img)
+              #print("exclude_img_list:", exclude_img_list)
+              #print("class_img relative to:", str(class_img.relative_to(ds_dir_path)))
+              #time.sleep(2)
+              if str(local_image_path) not in exclude_img_list:
+                #print("    ds_dir_path", ds_dir_path)
+                #print("    class_dir", class_dir)
+                #print("    class_img", class_img)
+                if left_to_exclude_count > 0:
+                  left_to_exclude_count -= 1
+                  #print("    class_img", class_img)
+                  print("    > that was a left to exclude", local_image_path)
+                  #time.sleep(1)
+                else:
+                  file.write(str(local_image_path) + "\t" + str(class_num) + "\n")
+                  added_count += 1
+              else:
+                #print("    class_img", class_img)
+                print("    > excluded from the exclusion list", local_image_path)
+                #time.sleep(1)
+          
+          if str(class_dir).endswith('Cat'):
+            print("Added", added_count, "cats to the description file")
+          else:
+            print("Added", added_count, "dogs to the description file")
+
+
+
+######################################################
+#Create the exclusion list and the global description#
+######################################################
+
+createExclusionFile(dataset_dir_path='./dataset/CatsAndDogs',
+                    mogrify_output_file_path='./dataset/CatsAndDogs/mogrify_output',
+                    output_file_path='./dataset/CatsAndDogs/exclude.txt',
+                    doOverwrite=True)
+
+createGlobalDescription(dataset_dir_path='./dataset/CatsAndDogs',
+                        exclude_img_file_path='./dataset/CatsAndDogs/exclude.txt',
+                        output_file_path='./dataset/CatsAndDogs/description.txt',
+                        doOverwrite=True)
+
+

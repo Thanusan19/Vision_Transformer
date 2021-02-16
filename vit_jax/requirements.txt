@@ -5,3 +5,4 @@ numpy==1.18.5
 tensorflow-cpu==2.3.1  # Using tensorflow-cpu to have all GPU memory for JAX.
 tensorflow-datasets==4.0.1
 tensorflow-probability==0.11.1
+opencv-python==4.5.1.48

@@ -16,3 +16,4 @@ vit_jax/-TEMPORARY
 vit_jax/logs/
 models/*
 data/*
+vit_jax/dataset/
