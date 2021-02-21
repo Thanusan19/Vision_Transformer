@@ -215,7 +215,8 @@ vit_apply_repl = jax.pmap(VisionTransformer.call)
 def get_accuracy(params_repl):
   """Returns accuracy evaluated on the test set."""
   good = total = 0
-  steps = input_pipeline.get_dataset_info(dataset, 'test')['num_examples'] // batch_size
+  #steps = input_pipeline.get_dataset_info(dataset, 'test')['num_examples'] // batch_size
+  steps = 5000 // batch_size
   for _, batch in zip(tqdm.trange(steps), ds_test.as_numpy_iterator()):
   #for _, batch in zip(steps, ds_test.as_numpy_iterator()):  
     predicted = vit_apply_repl(params_repl, batch['image'])
@@ -226,7 +227,7 @@ def get_accuracy(params_repl):
 
 
 # Random performance without fine-tuning.
-if 0:
+if 1:
   acc = get_accuracy(params_repl)
   print("Accuracy of the pre-trained model before fine-tunning : ", acc)
 
@@ -284,7 +285,7 @@ if FINE_TUNE :
 
 
   print("Save Checkpoints :")
-  checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_save_1.npz")
+  checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_save_2.npz")
 
 
 ###########
@@ -295,12 +296,12 @@ if INFERENCE :
   print_banner("INFERENCE")
 
   #VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=1000)
-  VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=10)
+  VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=2)
 
 
   # Load and convert pretrained checkpoint.
   #params = checkpoint.load(f'{model}_imagenet2012.npz')
-  params = checkpoint.load('../models/model_save_1.npz')
+  params = checkpoint.load('../models/model_save_2.npz')
   params['pre_logits'] = {}  # Need to restore empty leaf for Flax.
 
 
@@ -308,8 +309,11 @@ if INFERENCE :
   imagenet_labels = dict(enumerate(open('ilsvrc2012_wordnet_lemmas.txt')))
 
   # Get a random picture with the correct dimensions.
-  img = PIL.Image.open('picsum_1.jpg')
+  #img = PIL.Image.open('picsum_1.jpg')
 
+  #Get cat or dog image
+  img = PIL.Image.open('pic_dog.jpg')
+  img = img.resize((384,384))
 
   # Predict on a batch with a single item
   logits, = VisionTransformer.call(params, (np.array(img) / 128 - 1)[None, ...])
@@ -320,5 +324,5 @@ if INFERENCE :
   #   print(f'{preds[idx]:.5f} : {imagenet_labels[idx]}', end='')
 
   print("Predictions : ", preds)
-  print("airplane , automobile, bird, cat, deer, dog, frog, horse, ship, truck")
-
+  #print("airplane , automobile, bird, cat, deer, dog, frog, horse, ship, truck")
+  print("classes : dog, cat ")
