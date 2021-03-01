@@ -30,7 +30,7 @@ model = 'ViT-B_16'
 
 logger = logging_ViT.setup_logger('./logs')
 INFERENCE = True
-FINE_TUNE = True
+FINE_TUNE = False
 
 
 # Helper functions for images.
@@ -75,7 +75,7 @@ def print_banner(message):
 
 def _shard(data):
   data['image'] = tf.reshape(data['image'], [num_devices, -1, 384, 384, 3])
-  data['label'] = tf.reshape(data['label'], [num_devices, -1, 2])
+  data['label'] = tf.reshape(data['label'], [num_devices, -1, 166]) #2
   return data
 
 ##############
@@ -84,8 +84,9 @@ def _shard(data):
 """
 DATASET = 0 --> CIFAR-10 dataset
 DATASET = 1 --> DOG_CAT dataset
+DATASET = 2 --> DIATOM dataset
 """
-DATASET = 1
+DATASET = 2
 batch_size = 128  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
 
 
@@ -106,7 +107,7 @@ if(DATASET==0):
        dataset=dataset, mode='test', repeats=1, batch_size=batch_size,
    )
 
-else:
+elif(DATASET==1):
    print_banner("LOAD DATASET : CATS and DOGS")
 
    num_devices = len(jax.local_devices())
@@ -133,30 +134,65 @@ else:
    ds_test = ds_test.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
    ds_train = ds_train.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
+else:
+   print_banner("LOAD DATASET : DIATOM")
 
+   num_devices = len(jax.local_devices())
+
+   # The bypass
+   num_classes = 166
+   dataset = 'diatom'
+   dgscts_train = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
+                    dataset_path='dataset/diatom_dataset',
+                    set_type='train', #train
+                    train_prop=0.8)
+   dgscts_test = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
+                    dataset_path='dataset/diatom_dataset',
+                    set_type='test',
+                    train_prop=0.8)
+
+   ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
+   ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
+
+   print("get Dataset works")
+
+   if num_devices is not None:
+     ds_train = ds_train.map(_shard, tf.data.experimental.AUTOTUNE)
+     ds_test = ds_test.map(_shard, tf.data.experimental.AUTOTUNE)
+
+   ds_test = ds_test.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+   ds_train = ds_train.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+
+   print("Prefetch Works")
+
+   print("ds_train : ",ds_train)
+   print("ds_test : ",ds_test)
 
 # Fetch a batch of test images for illustration purposes.
 batch = next(iter(ds_test.as_numpy_iterator()))
 # Note the shape : [num_local_devices, local_batch_size, h, w, c]
 batch['image'].shape
 
-
-
 # Show some imags with their labels.
-images, labels = batch['image'][0][:9], batch['label'][0][:9]
-titles = map(make_label_getter(dataset), labels.argmax(axis=1))
+#images, labels = batch['image'][0][:9], batch['label'][0][:9]
+#titles = map(make_label_getter(dataset), labels.argmax(axis=1))
 #show_img_grid(images, titles)
+
 
 
 # Same as above, but with train images.
 # Do you spot a difference?
 # Check out input_pipeline.get_data() in the editor at your right to see how the
 # images are preprocessed differently.
-batch = next(iter(ds_train.as_numpy_iterator()))
-images, labels = batch['image'][0][:9], batch['label'][0][:9]
-titles = map(make_label_getter(dataset), labels.argmax(axis=1))
-#show_img_grid(images, titles)
 
+try:
+   batch = next(iter(ds_train.as_numpy_iterator()))
+except tf.errors.OutOfRangeError:
+   print("End of dataset")  # ==> "End of dataset
+
+#images, labels = batch['image'][0][:9], batch['label'][0][:9]
+#titles = map(make_label_getter(dataset), labels.argmax(axis=1))
+#show_img_grid(images, titles)
 
 
 ########################
@@ -227,7 +263,7 @@ def get_accuracy(params_repl):
 
 
 # Random performance without fine-tuning.
-if 1:
+if 0:
   acc = get_accuracy(params_repl)
   print("Accuracy of the pre-trained model before fine-tunning : ", acc)
 
@@ -285,7 +321,7 @@ if FINE_TUNE :
 
 
   print("Save Checkpoints :")
-  checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_save_2.npz")
+  checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_save_diatom.npz")
 
 
 ###########
@@ -296,12 +332,12 @@ if INFERENCE :
   print_banner("INFERENCE")
 
   #VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=1000)
-  VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=2)
+  VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=166) #2
 
 
   # Load and convert pretrained checkpoint.
   #params = checkpoint.load(f'{model}_imagenet2012.npz')
-  params = checkpoint.load('../models/model_save_2.npz')
+  params = checkpoint.load('../models/model_save_diatom.npz')
   params['pre_logits'] = {}  # Need to restore empty leaf for Flax.
 
 
@@ -312,7 +348,8 @@ if INFERENCE :
   #img = PIL.Image.open('picsum_1.jpg')
 
   #Get cat or dog image
-  img = PIL.Image.open('pic_dog.jpg')
+  #img = PIL.Image.open('pic_dog.jpg')
+  img = PIL.Image.open('BRG_UULN_10750.png')
   img = img.resize((384,384))
 
   # Predict on a batch with a single item
@@ -324,5 +361,9 @@ if INFERENCE :
   #   print(f'{preds[idx]:.5f} : {imagenet_labels[idx]}', end='')
 
   print("Predictions : ", preds)
+  for idx in preds.argsort()[:-11:-1]:
+     print("Class ID : ", idx, "Proba : ", preds[idx])
+
+
   #print("airplane , automobile, bird, cat, deer, dog, frog, horse, ship, truck")
-  print("classes : dog, cat ")
+  #print("classes : dog, cat ")

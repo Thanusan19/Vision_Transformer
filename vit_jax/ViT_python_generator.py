@@ -135,10 +135,12 @@ def createGlobalDescription(dataset_dir_path:str, exclude_img_file_path:str,
     with output_path.open(mode) as file:
       #writing in the file
       ds_dir_path = Path(dataset_dir_path)
-      #print("ds_dir_path", ds_dir_path)
+      print("ds_dir_path", ds_dir_path)
 
       class_num = -1
-      for class_dir in ds_dir_path.joinpath("PetImages").iterdir():
+      #for class_dir in ds_dir_path.joinpath("PetImages").iterdir():
+      for class_dir in ds_dir_path.iterdir():
+        print("CLASS DIR : ", class_dir)
         if class_dir.is_dir():
           class_num += 1
           print("  class_dir", class_dir)
@@ -153,32 +155,32 @@ def createGlobalDescription(dataset_dir_path:str, exclude_img_file_path:str,
 
           added_count = 0
           for class_img in class_dir.iterdir():
-            if class_img.match('[0-9]*.jpg'):
+            #if class_img.match('[0-9]*.jpg'):
               
-              local_image_path = class_img.relative_to(ds_dir_path)
+            local_image_path = class_img.relative_to(ds_dir_path)
               # Check for exclusion
 
 
-              #print("class_img:", class_img)
-              #print("exclude_img_list:", exclude_img_list)
-              #print("class_img relative to:", str(class_img.relative_to(ds_dir_path)))
-              #time.sleep(2)
-              if str(local_image_path) not in exclude_img_list:
-                #print("    ds_dir_path", ds_dir_path)
-                #print("    class_dir", class_dir)
+            #print("class_img:", class_img)
+            #print("exclude_img_list:", exclude_img_list)
+            #print("class_img relative to:", str(class_img.relative_to(ds_dir_path)))
+            #time.sleep(2)
+            if str(local_image_path) not in exclude_img_list:
+              #print("    ds_dir_path", ds_dir_path)
+              #print("    class_dir", class_dir)
+              #print("    class_img", class_img)
+              if left_to_exclude_count > 0:
+                left_to_exclude_count -= 1
                 #print("    class_img", class_img)
-                if left_to_exclude_count > 0:
-                  left_to_exclude_count -= 1
-                  #print("    class_img", class_img)
-                  print("    > that was a left to exclude", local_image_path)
-                  #time.sleep(1)
-                else:
-                  file.write(str(local_image_path) + "\t" + str(class_num) + "\n")
-                  added_count += 1
-              else:
-                #print("    class_img", class_img)
-                print("    > excluded from the exclusion list", local_image_path)
+                print("    > that was a left to exclude", local_image_path)
                 #time.sleep(1)
+              else:
+                file.write(str(local_image_path) + "\t" + str(class_num) + "\n")
+                added_count += 1
+            else:
+              #print("    class_img", class_img)
+              print("    > excluded from the exclusion list", local_image_path)
+              #time.sleep(1)
           
           if str(class_dir).endswith('Cat'):
             print("Added", added_count, "cats to the description file")
@@ -190,17 +192,24 @@ def createGlobalDescription(dataset_dir_path:str, exclude_img_file_path:str,
 #####################################################################
 #Create the exclusion list and the global description
 #####################################################################
+
+#MAIN_PATH = "" #"/home/GPU/tsathiak/local_storage/Vision_Transformer"
+#dataset_dir_path = MAIN_PATH +  "dataset/CatsAndDogs"
+#mogrify_output_file_path = MAIN_PATH + "dataset/CatsAndDogs/mogrify_output"
+#exclude_img_file_path = MAIN_PATH + "dataset/CatsAndDogs/exclude.txt"
+#output_description_file_path = MAIN_PATH + "dataset/CatsAndDogs/description.txt"
+
 MAIN_PATH = "" #"/home/GPU/tsathiak/local_storage/Vision_Transformer"
-dataset_dir_path = MAIN_PATH +  "dataset/CatsAndDogs"
-mogrify_output_file_path = MAIN_PATH + "dataset/CatsAndDogs/mogrify_output"
-exclude_img_file_path = MAIN_PATH + "dataset/CatsAndDogs/exclude.txt"
-output_description_file_path = MAIN_PATH + "dataset/CatsAndDogs/description.txt"
+dataset_dir_path = MAIN_PATH +  "dataset/diatom_dataset"
+mogrify_output_file_path = MAIN_PATH + "dataset/diatom_dataset/mogrify_output"
+exclude_img_file_path = MAIN_PATH + "dataset/diatom_dataset/exclude.txt"
+output_description_file_path = MAIN_PATH + "dataset/diatom_dataset/description.txt"
 
 
-createExclusionFile(dataset_dir_path=dataset_dir_path,
-                    mogrify_output_file_path=mogrify_output_file_path,
-                    output_file_path=exclude_img_file_path,
-                    doOverwrite=True)
+#createExclusionFile(dataset_dir_path=dataset_dir_path,
+#                    mogrify_output_file_path=mogrify_output_file_path,
+#                    output_file_path=exclude_img_file_path,
+#                    doOverwrite=True)
 
 createGlobalDescription(dataset_dir_path=dataset_dir_path,
                         exclude_img_file_path=exclude_img_file_path,
@@ -246,17 +255,18 @@ class MyDogsCats:
         self._img_list = []
         self._lbl_list = []
         self._num_class = len(img_list_par_classes)
+        print("Num class : ", self._num_class)
 
         for num_class in img_list_par_classes:
           # Definir les proportions
           num_files = len(img_list_par_classes[num_class])
           if set_type == "train":
-            num_per_class_to_keep = math.ceil((num_files // self._num_class) * train_prop)
+            num_per_class_to_keep = math.ceil(num_files * train_prop)
 
             class_files = img_list_par_classes[num_class][0:num_per_class_to_keep]
           
           elif set_type == "test":
-            num_per_class_to_keep = math.floor((num_files // self._num_class) * (1 - train_prop))
+            num_per_class_to_keep = math.floor(num_files * (1 - train_prop))
 
             class_files = img_list_par_classes[num_class][-num_per_class_to_keep:]
           
@@ -282,15 +292,16 @@ class MyDogsCats:
         else:
           self._set_type = "whole"
         
-        self._img_size = 384
+        self._img_size = 384 #256
         self._img_dim = (self._img_size, self._img_size)
         self._num_channels = 3
-        self._one_hot_depth = 2
+        self._one_hot_depth = self._num_class
 
         self._ds_path = Path(dataset_path)
     
     def getDataset(self):
         generator = self._generator
+        print("nbr samples ", self.num_samples)
         return tf.data.Dataset.from_generator(generator,
                                               args=[],
                                               output_types={'image': tf.float32, 'label': tf.int32},
@@ -321,6 +332,7 @@ class MyDogsCats:
             if len(im.shape) < 3:
               im = np.repeat(np.expand_dims(im, -1), 3, -1)
             #print(type(im))
+
             img = cv2.resize(im, self._img_dim)
             img = img/255.0
             #img = np.expand_dims(im, -1)
