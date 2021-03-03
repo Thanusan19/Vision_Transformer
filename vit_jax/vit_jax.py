@@ -30,7 +30,7 @@ model = 'ViT-B_16'
 
 logger = logging_ViT.setup_logger('./logs')
 INFERENCE = True
-FINE_TUNE = False
+FINE_TUNE = True
 
 
 # Helper functions for images.
@@ -306,6 +306,7 @@ if FINE_TUNE :
 
   # The world's simplest training loop.
   # Completes in ~20 min on the TPU runtime.
+  Loss_list = []
   for step, batch, lr_repl in zip(
       tqdm.trange(1, total_steps + 1),
       ds_train.as_numpy_iterator(),
@@ -314,6 +315,16 @@ if FINE_TUNE :
 
     opt_repl, loss_repl, update_rngs = update_fn_repl(
         opt_repl, lr_repl, batch, update_rngs)
+    Loss_list.append(loss_repl)
+
+  #Plot learning Curve
+  print(Loss_list)
+  fig = plt.figure()
+  plt.title('Learning Curve : Diatom Dataset')
+  plt.plot(Loss_list)
+  plt.xlabel('epochs')
+  plt.ylabel('Loss : Cross Entropy')
+  fig.savefig('Learning_curve_plot_diatom.png')
 
   if 1 :
     acc = get_accuracy(opt_repl.target)
