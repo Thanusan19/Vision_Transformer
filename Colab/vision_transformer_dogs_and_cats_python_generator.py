@@ -276,7 +276,8 @@ import random
 import math
 
 class MyDogsCats:
-    def __init__(self, ds_description_path:str, dataset_path:str, set_type:str, train_prop:float) -> None:
+    def __init__(self, ds_description_path:str, dataset_path:str, set_type:str,
+                 train_prop:float, doDataAugmentation:bool=False, doInceptionCrop:bool=True) -> None:
         """
         ds_description_path : fichier avec les paths de chaque fichiers du dataset et sa classe
         Exemple de fichier (tabulation entre le path et la classe):
@@ -312,14 +313,18 @@ class MyDogsCats:
 
         for num_class in img_list_par_classes:
           # Definir les proportions
-          num_files = len(img_list_par_classes[num_class])
+          num_files_class_k = len(img_list_par_classes[num_class])
+          # num_files = len(img_list_par_classes[num_class])
           if set_type == "train":
-            num_per_class_to_keep = math.ceil((num_files // self._num_class) * train_prop)
+            
+            num_per_class_to_keep = math.ceil(num_files_class_k * train_prop)
+            # num_per_class_to_keep = math.ceil((num_files // self._num_class) * train_prop)
 
             class_files = img_list_par_classes[num_class][0:num_per_class_to_keep]
           
           elif set_type == "test":
-            num_per_class_to_keep = math.floor((num_files // self._num_class) * (1 - train_prop))
+            num_per_class_to_keep = math.floor(num_files_class_k * (1 - train_prop))
+            # num_per_class_to_keep = math.floor((num_files // self._num_class) * (1 - train_prop))
 
             class_files = img_list_par_classes[num_class][-num_per_class_to_keep:]
           
@@ -348,7 +353,10 @@ class MyDogsCats:
         self._img_size = 384
         self._img_dim = (self._img_size, self._img_size)
         self._num_channels = 3
-        self._one_hot_depth = 2
+        self._one_hot_depth = self._num_class
+
+        self._do_data_augmentation = doDataAugmentation
+        self._do_inception_crop = doInceptionCrop
 
         self._ds_path = Path(dataset_path)
     
@@ -381,12 +389,48 @@ class MyDogsCats:
               i = 0
               im = cv2.imread(str(self._ds_path/img_list[0]),-1)
 
+            # If in black and white, replicate in 3 channels
             if len(im.shape) < 3:
               im = np.repeat(np.expand_dims(im, -1), 3, -1)
-            #print(type(im))
-            img = cv2.resize(im, self._img_dim)
-            img = img/255.0
-            #img = np.expand_dims(im, -1)
+            
+            # Convert from BGR to RGB
+            im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+
+            # Data Augmentation :
+            if self._do_data_augmentation and self._set_type == 'train':
+              if self._do_inception_crop:
+                # from input_pipeline.py
+                channels = im.shape[-1]
+                begin, size, _ = tf.image.sample_distorted_bounding_box(
+                    tf.shape(im),
+                    tf.zeros([0, 0, 4], tf.float32),
+                    area_range=(0.5, 1.0),
+                    min_object_covered=0,  # Don't enforce a minimum area.
+                    use_image_if_no_bounding_boxes=True)
+                im = tf.slice(im, begin, size)
+                # Unfortunately, the above operation loses the depth-dimension. So we
+                # need to restore it the manual way.
+                im.set_shape([None, None, channels])
+                im = tf.image.resize(im, [self._img_size, self._img_size])
+              else:
+                # from input_pipeline.py
+                im = tf.image.resize(im, [self._img_size, self._img_size])
+                im = tf.image.random_crop(im, [self._img_size, self._img_size, 3])
+              if tf.random.uniform(shape=[]) > 0.5:
+                im = tf.image.flip_left_right(im)
+              
+              img = im
+            else:
+              #print(type(im))
+              img = cv2.resize(im, self._img_dim)
+            
+            # Normalization
+            # Old normalization
+            # img = img/255.0
+
+            # New Normalization
+            img = (img - 127.5) / 127.5
+            
             lbl = tf.one_hot(lbl_list[i], depth=self._one_hot_depth, dtype=tf.int32)
             yield {'image': img, 'label': lbl}
 
@@ -572,14 +616,20 @@ num_devices = len(jax.local_devices())
 batch_size = 64
 num_classes = 2
 dataset = 'dogscats'
+
+# With data augmentation (from ViT)
 dgscts_train = MyDogsCats(ds_description_path='/content/dataset/CatsAndDogs/description.txt',
                     dataset_path='/content/dataset/CatsAndDogs',
                     set_type='train',
-                    train_prop=0.8)
+                    train_prop=0.8,
+                    doDataAugmentation=True,
+                    doInceptionCrop=True)
 dgscts_test = MyDogsCats(ds_description_path='/content/dataset/CatsAndDogs/description.txt',
                     dataset_path='/content/dataset/CatsAndDogs',
                     set_type='test',
-                    train_prop=0.8)
+                    train_prop=0.8,
+                    doDataAugmentation=True,
+                    doInceptionCrop=True)
 
 ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
 ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
