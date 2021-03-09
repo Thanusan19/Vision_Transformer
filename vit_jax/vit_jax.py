@@ -145,11 +145,13 @@ else:
    dgscts_train = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
                     dataset_path='dataset/diatom_dataset',
                     set_type='train', #train
-                    train_prop=0.8)
+                    train_prop=0.8,
+                    doDataAugmentation=True)
    dgscts_test = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
                     dataset_path='dataset/diatom_dataset',
                     set_type='test',
-                    train_prop=0.8)
+                    train_prop=0.8,
+                    doDataAugmentation=False)
 
    ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
    ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)

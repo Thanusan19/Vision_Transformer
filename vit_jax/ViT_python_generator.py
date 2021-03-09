@@ -310,18 +310,10 @@ class MyDogsCats:
 
         self._ds_path = Path(dataset_path)
 
-    def getDataset(self):
-        generator = self._generator
-        print("nbr samples ", self.num_samples)
-        return tf.data.Dataset.from_generator(generator,
-                                              args=[],
-                                              output_types={'image': tf.float32, 'label': tf.int32},
-                                              output_shapes={'image': tf.TensorShape((self._end_im_size, self._end_im_size, self._num_channels)),
-                                                             'label': tf.TensorShape((self._one_hot_depth))})
     ####
     # Helpers for the Data Augmentation
     ####
-    def get_sigmoid_gradient_2d(start, stop, width, height, is_horizontal):
+    def get_sigmoid_gradient_2d(self, start, stop, width, height, is_horizontal):
         x = np.linspace(start, stop, width)
         # print(x)
         s = 1/(1 + np.exp(-x))
@@ -335,14 +327,24 @@ class MyDogsCats:
             #print(res)
             return res
 
-    def get_sigmoid_gradient_3d(width, height, start_list, stop_list, is_horizontal_list):
+    def get_sigmoid_gradient_3d(self, width, height, start_list, stop_list, is_horizontal_list):
+        print(start_list)
         result = np.zeros((height, width, len(start_list)), dtype=np.float32)
 
         for i, (start, stop, is_horizontal) in enumerate(zip(start_list, stop_list, is_horizontal_list)):
-            result[:, :, i] = get_sigmoid_gradient_2d(start, stop, width, height, is_horizontal)
+            result[:, :, i] = self.get_sigmoid_gradient_2d(start, stop, width, height, is_horizontal)
 
         return result
-    
+
+
+    def getDataset(self):
+        generator = self._generator
+        print("nbr samples ", self.num_samples)
+        return tf.data.Dataset.from_generator(generator,
+                                              args=[],
+                                              output_types={'image': tf.float32, 'label': tf.int32},
+                                              output_shapes={'image': tf.TensorShape((self._end_im_size, self._end_im_size, self._num_channels)),
+                                                             'label': tf.TensorShape((self._one_hot_depth))})
 
 
     #####
@@ -359,25 +361,22 @@ class MyDogsCats:
             blend_size = (120, 120)
             translate_range = (-80, 80)
             total_size = blend_size[0] + blend_size[1]
-                
+
             left = blend_size[0]
             fond = np.zeros(tuple(np.append(tuple(self._start_im_dim), 3)), np.uint8)
-            
+
             # blank in float representation (1.0)
             blank = np.ones(tuple(np.append(tuple(self._start_im_dim), 3)), np.float32)
 
-            blend_left = get_sigmoid_gradient_3d(blend_size[0], h,
-                                        start_list=np.ones(3)*-10.0,
-                                        stop_list=np.ones(3)*10.0,
-                                        is_horizontal_list=[True, True, True])
+            blend_left = self.get_sigmoid_gradient_3d(width=blend_size[0], height=self._start_im_size, start_list=np.ones(3)*-10.0, stop_list=np.ones(3)*10.0, is_horizontal_list=[True, True, True])
 
-            blend_right = get_sigmoid_gradient_3d(blend_size[1], h,
+            blend_right = self.get_sigmoid_gradient_3d(blend_size[1], self._start_im_size,
                                                 start_list=np.ones(3)*10.0,
                                                 stop_list=np.ones(3)*-10.0,
                                                 is_horizontal_list=[True, True, True])
 
-            blend_all = np.concatenate([blend_left, blank[:,:w-total_size,:], blend_right], axis=1)
-        
+            blend_all = np.concatenate([blend_left, blank[:,:self._start_im_size-total_size,:], blend_right], axis=1)
+
         img_list = self._img_list
         lbl_list = self._lbl_list
 
@@ -436,7 +435,7 @@ class MyDogsCats:
 
                 # Translate the image
                 rand_trans_mat = np.column_stack([[1, 0], [0, 1], rand_tx_ty])
-                im = cv2.warpAffine(im, rand_trans_mat, tuple(vit_im_size),
+                im = cv2.warpAffine(im, rand_trans_mat, tuple(self._end_im_dim),
                                     borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
                 
                 #####
