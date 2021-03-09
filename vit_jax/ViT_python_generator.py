@@ -338,3 +338,7 @@ class MyDogsCats:
             #img = np.expand_dims(im, -1)
             lbl = tf.one_hot(lbl_list[i], depth=self._one_hot_depth, dtype=tf.int32)
             yield {'image': img, 'label': lbl}
+
+
+    def get_num_samples(self):
+        return self.num_samples

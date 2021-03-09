@@ -87,7 +87,7 @@ DATASET = 1 --> DOG_CAT dataset
 DATASET = 2 --> DIATOM dataset
 """
 DATASET = 2
-batch_size = 128  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
+batch_size = 512  #127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
 
 
 if(DATASET==0):
@@ -153,6 +153,9 @@ else:
 
    ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
    ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
+   
+   ds_train = ds_train.repeat(20)
+   ds_test = ds_test.repeat(20)
 
    print("get Dataset works")
 
@@ -252,7 +255,7 @@ def get_accuracy(params_repl):
   """Returns accuracy evaluated on the test set."""
   good = total = 0
   #steps = input_pipeline.get_dataset_info(dataset, 'test')['num_examples'] // batch_size
-  steps = 5000 // batch_size
+  steps = 20000 // batch_size
   for _, batch in zip(tqdm.trange(steps), ds_test.as_numpy_iterator()):
   #for _, batch in zip(steps, ds_test.as_numpy_iterator()):  
     predicted = vit_apply_repl(params_repl, batch['image'])
@@ -276,7 +279,12 @@ if FINE_TUNE :
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  total_steps = 100
+  epochs = 2
+  total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs;  #300
+  print("Total nbr backward steps : ",total_steps)
+  print("Total nbr epochs : ",epochs)
+  print("Nbr of train samples :",dgscts_train.get_num_samples())
+  print("Batch Size : ",batch_size)
   warmup_steps = 5
   decay_type = 'cosine'
   grad_norm_clip = 1
@@ -322,9 +330,23 @@ if FINE_TUNE :
   fig = plt.figure()
   plt.title('Learning Curve : Diatom Dataset')
   plt.plot(Loss_list)
-  plt.xlabel('epochs')
+  plt.xlabel('training_steps')
   plt.ylabel('Loss : Cross Entropy')
-  fig.savefig('Learning_curve_plot_diatom.png')
+  fig.savefig('Learning_curve_plot_diatom_per_training_steps.png')
+
+  #Plot Loss per epochs
+  Loss_per_epochs = []
+  steps_per_epoch = dgscts_train.get_num_samples()//batch_size 
+  for i in range(0,total_steps,steps_per_epoch):
+     Loss_per_epochs.append(Loss_list[i])
+
+  fig = plt.figure()
+  plt.title('Learning Curve : Diatom Dataset')
+  plt.plot(Loss_per_epochs)
+  plt.xlabel('Epochs')
+  plt.ylabel('Loss : Cross Entropy')
+  fig.savefig('Learning_curve_plot_diatom_per_epochs.png')
+
 
   if 1 :
     acc = get_accuracy(opt_repl.target)
