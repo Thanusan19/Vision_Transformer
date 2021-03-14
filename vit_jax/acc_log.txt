@@ -1,0 +1,1 @@
+Accuracy of the pre-trained model after fine-tunning : 0.9396534562110901

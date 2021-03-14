@@ -31,7 +31,7 @@ model = 'ViT-B_16'
 logger = logging_ViT.setup_logger('./logs')
 INFERENCE = True
 FINE_TUNE = True
-
+CHECKPOINTS_TEST = False
 
 # Helper functions for images.
 
@@ -146,7 +146,7 @@ else:
                     dataset_path='dataset/diatom_dataset',
                     set_type='train', #train
                     train_prop=0.8,
-                    doDataAugmentation=True)
+                    doDataAugmentation=False)
    dgscts_test = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
                     dataset_path='dataset/diatom_dataset',
                     set_type='test',
@@ -156,8 +156,8 @@ else:
    ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
    ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
    
-   ds_train = ds_train.repeat(20)
-   ds_test = ds_test.repeat(20)
+   ds_train = ds_train.repeat()
+   ds_test = ds_test.repeat()
 
    print("get Dataset works")
 
@@ -228,6 +228,14 @@ params = checkpoint.load_pretrained(
 )
 
 
+#Checpoints test
+#params = checkpoint.load_pretrained(
+#    pretrained_path=f'../models/model_diatom_checkpoint_step_6000.npz', 
+#    init_params=params,
+#    model_config=models.CONFIGS[model],
+#    logger=logger,
+#)
+
 
 
 ################################################
@@ -281,7 +289,7 @@ if FINE_TUNE :
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  epochs = 2
+  epochs = 400
   total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs;  #300
   print("Total nbr backward steps : ",total_steps)
   print("Total nbr epochs : ",epochs)
@@ -322,16 +330,20 @@ if FINE_TUNE :
       ds_train.as_numpy_iterator(),
       lr_iter
   ):
-
     opt_repl, loss_repl, update_rngs = update_fn_repl(
         opt_repl, lr_repl, batch, update_rngs)
+    #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
+    #save weights every 1000 training steps
+    if(step%1000==0):
+       checkpoint.save(flax_utils.unreplicate(opt_repl.target), f"../models/model_diatom_checkpoint_step_{step}.npz")
+
 
   #Plot learning Curve
   print(Loss_list)
   fig = plt.figure()
   plt.title('Learning Curve : Diatom Dataset')
-  plt.plot(Loss_list)
+  plt.plot(np.log(Loss_list))
   plt.xlabel('training_steps')
   plt.ylabel('Loss : Cross Entropy')
   fig.savefig('Learning_curve_plot_diatom_per_training_steps.png')
@@ -344,7 +356,7 @@ if FINE_TUNE :
 
   fig = plt.figure()
   plt.title('Learning Curve : Diatom Dataset')
-  plt.plot(Loss_per_epochs)
+  plt.plot(np.log(Loss_per_epochs))
   plt.xlabel('Epochs')
   plt.ylabel('Loss : Cross Entropy')
   fig.savefig('Learning_curve_plot_diatom_per_epochs.png')
@@ -353,11 +365,18 @@ if FINE_TUNE :
   if 1 :
     acc = get_accuracy(opt_repl.target)
     print("Accuracy of the pre-trained model after fine-tunning", acc)
-
+    f = open("acc_log.txt", "w")
+    f.write(f"Accuracy of the pre-trained model after fine-tunning : {acc}")
+    f.close()
 
   print("Save Checkpoints :")
-  checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_save_diatom.npz")
+  checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_diatom_final_checkpoints.npz")
 
+if CHECKPOINTS_TEST:
+  params = checkpoint.load('../models/model_diatom_final_checkpoints.npz')
+  params_repl = flax.jax_utils.replicate(params)
+  acc = get_accuracy(params_repl)
+  print("Accuracy of the pre-trained model after fine-tunning", acc)
 
 ###########
 #INFERENCE#
@@ -372,7 +391,7 @@ if INFERENCE :
 
   # Load and convert pretrained checkpoint.
   #params = checkpoint.load(f'{model}_imagenet2012.npz')
-  params = checkpoint.load('../models/model_save_diatom.npz')
+  params = checkpoint.load('../models/model_diatom_final_checkpoints.npz')
   params['pre_logits'] = {}  # Need to restore empty leaf for Flax.
 
 
