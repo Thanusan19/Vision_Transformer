@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import tqdm
 import PIL
+import seaborn
 
 import checkpoint
 import input_pipeline
@@ -77,6 +78,34 @@ def _shard(data):
   data['image'] = tf.reshape(data['image'], [num_devices, -1, 384, 384, 3])
   data['label'] = tf.reshape(data['label'], [num_devices, -1, 166]) #2
   return data
+
+def plot_confusion_matrix(data, labels, output_filename):
+    """Plot confusion matrix using heatmap.
+    Args:
+        data (list of list): List of lists with confusion matrix data.
+        labels (list): Labels which will be plotted across x and y axis.
+        output_filename (str): Path to output file.
+
+    """
+    seaborn.set(color_codes=True)
+    plt.figure(1, figsize=(9, 6))
+
+    plt.title("Confusion Matrix")
+
+    #seaborn.set(font_scale=1.4)
+    #ax = seaborn.heatmap(data, annot=True, cmap="YlGnBu", cbar_kws={'label': 'Scale'})
+
+    ax = seaborn.heatmap(data)
+
+    #ax.set_xticklabels(labels)
+    #ax.set_yticklabels(labels)
+
+    ax.set(ylabel="True Label", xlabel="Predicted Label")
+
+    #plt.savefig(output_filename, bbox_inches='tight', dpi=300)
+    plt.savefig(output_filename)
+    plt.close()
+
 
 ##############
 #LOAD DATASET#
@@ -396,24 +425,20 @@ if CHECKPOINTS_TEST:
   # Then map the call to our model's forward pass into all available devices.
   vit_apply_repl = jax.pmap(VisionTransformer.call)
 
-  acc = get_accuracy(params_repl)
-  print("Accuracy of the pre-trained model after fine-tunning", acc)
+  #acc = get_accuracy(params_repl)
+  #print("Accuracy of the pre-trained model after fine-tunning", acc)
 
 
   #Confusion Matrix
   predicted, labels = get_predict_labels_on_test_data(params_repl)
-
-  confusion_matrix = tf.math.confusion_matrix(
-    labels=labels, 
-    predictions=predicted, 
-    num_classes=None, 
-    weights=None, 
-    dtype=tf.dtypes.int32,
-    name=None
-  )
+  predicted = np.array(predicted).flatten()
+  labels = np.array(labels).flatten()
+  print("Predicted Shape : ", predicted.shape, "labels shape : ", labels.shape)
+  confusion_matrix = tf.math.confusion_matrix(labels, predicted)
 
   print(confusion_matrix)
 
+  plot_confusion_matrix(confusion_matrix, labels, "confusion_matrix.png")
 
 
 ###########
