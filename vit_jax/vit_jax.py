@@ -367,7 +367,7 @@ if CHECKPOINTS_TEST:
       [(batch['image'].shape[1:], batch['image'].dtype.name)])
 
   params = checkpoint.load_pretrained(
-    pretrained_path='../models/model_diatom_final_checkpoints.npz',
+    pretrained_path='../models/model_diatom_checkpoint_step_6000.npz',
     init_params=params,
     model_config=models.CONFIGS[model],
     logger=logger,
