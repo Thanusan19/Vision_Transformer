@@ -367,7 +367,7 @@ if CHECKPOINTS_TEST:
       [(batch['image'].shape[1:], batch['image'].dtype.name)])
 
   params = checkpoint.load_pretrained(
-    pretrained_path='../models/model_diatom_checkpoint_step_6000.npz',
+    pretrained_path='../models/model_diatom_final_checkpoints.npz',
     init_params=params,
     model_config=models.CONFIGS[model],
     logger=logger,
@@ -383,7 +383,32 @@ if CHECKPOINTS_TEST:
   acc = get_accuracy(params_repl)
   print("Accuracy of the pre-trained model after fine-tunning", acc)
 
-  print("EXIT")
+  #Confusion Matrix
+  def get_predic_labels_on_test_data(params_repl):
+  """Returns Predicted Class list and Label Class list """
+
+  steps = 20000 // batch_size
+  predicted = []
+  labels = []
+  for _, batch in zip(tqdm.trange(steps), ds_test.as_numpy_iterator()):
+    predicted.append(vit_apply_repl(params_repl, batch['image']).argmax(axis=-1))
+    labels.append(batch['label'].argmax(axis=-1))
+
+  return predicted, labels
+
+  predicted, labels = get_predic_labels_on_test_data(params_repl)
+
+  confusion_matrix = tf.math.confusion_matrix(
+    labels=labels, 
+    predictions=predicted, 
+    num_classes=None, 
+    weights=None, 
+    dtype=tf.dtypes.int32,
+    name=None
+  )
+
+  print(confusion_matrix)
+
 
 
 ###########
