@@ -29,9 +29,9 @@ jax.local_devices()
 model = 'ViT-B_16'
 
 logger = logging_ViT.setup_logger('./logs')
-INFERENCE = True
-FINE_TUNE = True
-CHECKPOINTS_TEST = False
+INFERENCE = False
+FINE_TUNE = False
+CHECKPOINTS_TEST = True
 
 # Helper functions for images.
 
@@ -176,28 +176,12 @@ else:
 # Fetch a batch of test images for illustration purposes.
 batch = next(iter(ds_test.as_numpy_iterator()))
 # Note the shape : [num_local_devices, local_batch_size, h, w, c]
-batch['image'].shape
-
-# Show some imags with their labels.
-#images, labels = batch['image'][0][:9], batch['label'][0][:9]
-#titles = map(make_label_getter(dataset), labels.argmax(axis=1))
-#show_img_grid(images, titles)
-
-
-
-# Same as above, but with train images.
-# Do you spot a difference?
-# Check out input_pipeline.get_data() in the editor at your right to see how the
-# images are preprocessed differently.
 
 try:
    batch = next(iter(ds_train.as_numpy_iterator()))
 except tf.errors.OutOfRangeError:
    print("End of dataset")  # ==> "End of dataset
 
-#images, labels = batch['image'][0][:9], batch['label'][0][:9]
-#titles = map(make_label_getter(dataset), labels.argmax(axis=1))
-#show_img_grid(images, titles)
 
 
 ########################
@@ -373,10 +357,34 @@ if FINE_TUNE :
   checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_diatom_final_checkpoints.npz")
 
 if CHECKPOINTS_TEST:
-  params = checkpoint.load('../models/model_diatom_final_checkpoints.npz')
+  print_banner("CHECKPOINTS_TEST")
+
+  # Load model definition & initialize random parameters.
+  VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=num_classes)
+  _, params = VisionTransformer.init_by_shape(
+      jax.random.PRNGKey(0),
+      # Discard the "num_local_devices" dimension of the batch for initialization.
+      [(batch['image'].shape[1:], batch['image'].dtype.name)])
+
+  params = checkpoint.load_pretrained(
+    pretrained_path='../models/model_diatom_final_checkpoints.npz',
+    init_params=params,
+    model_config=models.CONFIGS[model],
+    logger=logger,
+  )
+
   params_repl = flax.jax_utils.replicate(params)
+  print('params.cls:', type(params['cls']).__name__, params['cls'].shape)
+  print('params_repl.cls:', type(params_repl['cls']).__name__, params_repl['cls'].shape)
+
+  # Then map the call to our model's forward pass into all available devices.
+  vit_apply_repl = jax.pmap(VisionTransformer.call)
+
   acc = get_accuracy(params_repl)
   print("Accuracy of the pre-trained model after fine-tunning", acc)
+
+  print("EXIT")
+
 
 ###########
 #INFERENCE#
