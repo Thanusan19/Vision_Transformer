@@ -311,31 +311,30 @@ class MyDogsCats:
         self._ds_path = Path(dataset_path)
 
     ####
-    # Helpers for the Data Augmentation
+    # OLD : Helpers for the Data Augmentation
     ####
-    def get_sigmoid_gradient_2d(self, start, stop, width, height, is_horizontal):
-        x = np.linspace(start, stop, width)
-        # print(x)
-        s = 1/(1 + np.exp(-x))
+    # def get_sigmoid_gradient_2d(self, start, stop, width, height, is_horizontal):
+    #     x = np.linspace(start, stop, width)
+    #     # print(x)
+    #     s = 1/(1 + np.exp(-x))
 
-        if is_horizontal:
-            res = np.tile(s, (height, 1))
-            #print(res)
-            return res
-        else:
-            res = np.tile(s, (width, 1)).T
-            #print(res)
-            return res
+    #     if is_horizontal:
+    #         res = np.tile(s, (height, 1))
+    #         #print(res)
+    #         return res
+    #     else:
+    #         res = np.tile(s, (width, 1)).T
+    #         #print(res)
+    #         return res
 
-    def get_sigmoid_gradient_3d(self, width, height, start_list, stop_list, is_horizontal_list):
-        print(start_list)
-        result = np.zeros((height, width, len(start_list)), dtype=np.float32)
+    # def get_sigmoid_gradient_3d(self, width, height, start_list, stop_list, is_horizontal_list):
+    #     print(start_list)
+    #     result = np.zeros((height, width, len(start_list)), dtype=np.float32)
 
-        for i, (start, stop, is_horizontal) in enumerate(zip(start_list, stop_list, is_horizontal_list)):
-            result[:, :, i] = self.get_sigmoid_gradient_2d(start, stop, width, height, is_horizontal)
+    #     for i, (start, stop, is_horizontal) in enumerate(zip(start_list, stop_list, is_horizontal_list)):
+    #         result[:, :, i] = self.get_sigmoid_gradient_2d(start, stop, width, height, is_horizontal)
 
-        return result
-
+    #     return result
 
     def getDataset(self):
         generator = self._generator
@@ -354,28 +353,28 @@ class MyDogsCats:
 
         # Setup for Data Augmentation
         if self._do_data_augmentation and self._set_type == 'train':
-            start_im_center = tuple(self._start_im_dim/2)
-            end_im_center = tuple(self._end_im_dim/2)
+            start_im_center = tuple(self._start_im_dim//2)
+            end_im_center = tuple(self._end_im_dim//2)
 
             # Parameters
-            blend_size = (120, 120)
+            # blend_size = (120, 120)
             translate_range = (-80, 80)
-            total_size = blend_size[0] + blend_size[1]
+            # total_size = blend_size[0] + blend_size[1]
 
-            left = blend_size[0]
+            # left = blend_size[0]
             fond = np.zeros(tuple(np.append(tuple(self._start_im_dim), 3)), np.uint8)
 
-            # blank in float representation (1.0)
-            blank = np.ones(tuple(np.append(tuple(self._start_im_dim), 3)), np.float32)
+            # blank mask in uint8 representation (255)
+            blank = 255 * np.ones(tuple(np.append(tuple(self._start_im_dim), 3)), np.uint8)
 
-            blend_left = self.get_sigmoid_gradient_3d(width=blend_size[0], height=self._start_im_size, start_list=np.ones(3)*-10.0, stop_list=np.ones(3)*10.0, is_horizontal_list=[True, True, True])
+            # blend_left = self.get_sigmoid_gradient_3d(width=blend_size[0], height=self._start_im_size, start_list=np.ones(3)*-10.0, stop_list=np.ones(3)*10.0, is_horizontal_list=[True, True, True])
 
-            blend_right = self.get_sigmoid_gradient_3d(blend_size[1], self._start_im_size,
-                                                start_list=np.ones(3)*10.0,
-                                                stop_list=np.ones(3)*-10.0,
-                                                is_horizontal_list=[True, True, True])
+            # blend_right = self.get_sigmoid_gradient_3d(blend_size[1], self._start_im_size,
+            #                                     start_list=np.ones(3)*10.0,
+            #                                     stop_list=np.ones(3)*-10.0,
+            #                                     is_horizontal_list=[True, True, True])
 
-            blend_all = np.concatenate([blend_left, blank[:,:self._start_im_size-total_size,:], blend_right], axis=1)
+            # blend_all = np.concatenate([blend_left, blank[:,:self._start_im_size-total_size,:], blend_right], axis=1)
 
         img_list = self._img_list
         lbl_list = self._lbl_list
@@ -406,14 +405,23 @@ class MyDogsCats:
                 # start by ensuring images are the size of the start dim
                 im = cv2.resize(im, tuple(self._start_im_dim))
 
-                # Find the color to blend
-                fond_couleur = np.median(im[1:30, left//2:left//2+10, :], axis=[0,1])
+                # Find the color to blend (update : take the median color of the image)
+                # fond_couleur = np.median(im[1:30, left//2:left//2+10, :], axis=[0,1])
+                fond_couleur = np.median(im[:, :, :], axis=[0,1])
                 # fond_couleur = (0, 255, 0)
 
                 fond[:, :, :] = fond_couleur
 
+                #####
+                # OLD blending
+                #####
                 # Make the blend between the image and the background color
-                im = np.round((im/255.0 * blend_all + fond/255.0 * (1 - blend_all))*255.0).astype(np.uint8)
+                # im = np.round((im/255.0 * blend_all + fond/255.0 * (1 - blend_all))*255.0).astype(np.uint8)
+
+                # Seamless cloning between the image and the new background
+                # From https://learnopencv.com/seamless-cloning-using-opencv-python-cpp/
+                # Small tweak could be between cv2.MIXED_CLONE or cv2.NORMAL_CLONE, but I can't see the difference for this dataset
+                im = cv2.seamlessClone(src=im, dst=fond, mask=blank, p=start_im_center, flags=cv2.MIXED_CLONE)
 
                 # Translate to the center of the bigger image
                 tx_ty = np.floor(((self._start_im_dim - self._end_im_dim)/2))
@@ -437,31 +445,6 @@ class MyDogsCats:
                 rand_trans_mat = np.column_stack([[1, 0], [0, 1], rand_tx_ty])
                 im = cv2.warpAffine(im, rand_trans_mat, tuple(self._end_im_dim),
                                     borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
-                
-                #####
-                # Old Augmentation
-                #####
-                # if self._do_inception_crop:
-                #     # from input_pipeline.py
-                #     channels = im.shape[-1]
-                #     begin, size, _ = tf.image.sample_distorted_bounding_box(
-                #         tf.shape(im),
-                #         tf.zeros([0, 0, 4], tf.float32),
-                #         area_range=(0.5, 1.0),
-                #         min_object_covered=0,  # Don't enforce a minimum area.
-                #         use_image_if_no_bounding_boxes=True)
-                #     im = tf.slice(im, begin, size)
-                #     # Unfortunately, the above operation loses the depth-dimension. So we
-                #     # need to restore it the manual way.
-                #     im.set_shape([None, None, channels])
-                #     im = tf.image.resize(im, [self._end_im_size, self._end_im_size])
-                # else:
-                #     # from input_pipeline.py
-                #     im = tf.image.resize(im, [self._end_im_size, self._end_im_size])
-                #     im = tf.image.random_crop(
-                #         im, [self._end_im_size, self._end_im_size, 3])
-                # if tf.random.uniform(shape=[]) > 0.5:
-                #     im = tf.image.flip_left_right(im)
 
                 img = im
             else:
