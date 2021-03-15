@@ -418,15 +418,16 @@ if CHECKPOINTS_TEST:
     logger=logger,
   )
 
-  params_repl = flax.jax_utils.replicate(params)
+  params = checkpoint.load('../models/model_diatom_final_checkpoints.npz')
+
   print('params.cls:', type(params['cls']).__name__, params['cls'].shape)
   print('params_repl.cls:', type(params_repl['cls']).__name__, params_repl['cls'].shape)
 
   # Then map the call to our model's forward pass into all available devices.
   vit_apply_repl = jax.pmap(VisionTransformer.call)
 
-  #acc = get_accuracy(params_repl)
-  #print("Accuracy of the pre-trained model after fine-tunning", acc)
+  acc = get_accuracy(params_repl)
+  print("Accuracy of the pre-trained model after fine-tunning", acc)
 
 
   #Confusion Matrix
