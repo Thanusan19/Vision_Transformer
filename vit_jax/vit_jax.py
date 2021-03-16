@@ -31,8 +31,8 @@ model = 'ViT-B_16'
 
 logger = logging_ViT.setup_logger('./logs')
 INFERENCE = False
-FINE_TUNE = False
-CHECKPOINTS_TEST = True
+FINE_TUNE = True
+CHECKPOINTS_TEST = False
 
 # Helper functions for images.
 
@@ -202,7 +202,7 @@ else:
                     dataset_path='dataset/diatom_dataset',
                     set_type='train', #train
                     train_prop=0.8,
-                    doDataAugmentation=False)
+                    doDataAugmentation=True)
    dgscts_test = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
                     dataset_path='dataset/diatom_dataset',
                     set_type='test',
@@ -312,7 +312,7 @@ if FINE_TUNE :
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  epochs = 400
+  epochs = 600
   total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs;  #300
   print("Total nbr backward steps : ",total_steps)
   print("Total nbr epochs : ",epochs)
@@ -359,14 +359,15 @@ if FINE_TUNE :
     Loss_list.append(loss_repl)
     #save weights every 1000 training steps
     if(step%1000==0):
-       checkpoint.save(flax_utils.unreplicate(opt_repl.target), f"../models/model_diatom_checkpoint_step_{step}.npz")
+       checkpoint.save(flax_utils.unreplicate(opt_repl.target), f"../models/model_diatom_checkpoint_step_{step}_with_data_aug.npz")
 
 
   #Plot learning Curve
   print(Loss_list)
   fig = plt.figure()
   plt.title('Learning Curve : Diatom Dataset')
-  plt.plot(np.log(Loss_list))
+  plt.plot(Loss_list)
+  plt.yscale('log')
   plt.xlabel('training_steps')
   plt.ylabel('Loss : Cross Entropy')
   fig.savefig('Learning_curve_plot_diatom_per_training_steps.png')
@@ -379,7 +380,8 @@ if FINE_TUNE :
 
   fig = plt.figure()
   plt.title('Learning Curve : Diatom Dataset')
-  plt.plot(np.log(Loss_per_epochs))
+  plt.plot(Loss_per_epochs)
+  plt.yscale('log')
   plt.xlabel('Epochs')
   plt.ylabel('Loss : Cross Entropy')
   fig.savefig('Learning_curve_plot_diatom_per_epochs.png')
@@ -393,7 +395,7 @@ if FINE_TUNE :
     f.close()
 
   print("Save Checkpoints :")
-  checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_diatom_final_checkpoints.npz")
+  checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_diatom_final_checkpoints_with_data_aug.npz")
 
 
 
@@ -415,15 +417,16 @@ if CHECKPOINTS_TEST:
     logger=logger,
   )
 
-  params_repl = flax.jax_utils.replicate(params)
+  params = checkpoint.load('../models/model_diatom_final_checkpoints.npz')
+
   print('params.cls:', type(params['cls']).__name__, params['cls'].shape)
   print('params_repl.cls:', type(params_repl['cls']).__name__, params_repl['cls'].shape)
 
   # Then map the call to our model's forward pass into all available devices.
   vit_apply_repl = jax.pmap(VisionTransformer.call)
 
-  #acc = get_accuracy(params_repl)
-  #print("Accuracy of the pre-trained model after fine-tunning", acc)
+  acc = get_accuracy(params_repl)
+  print("Accuracy of the pre-trained model after fine-tunning", acc)
 
 
   #Confusion Matrix

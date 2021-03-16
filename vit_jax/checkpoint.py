@@ -213,8 +213,9 @@ def load_pretrained(*, pretrained_path, init_params, model_config, logger):
   #    layer (logits) for the new task.
   if model_config.representation_size is None:
     if 'pre_logits' in restored_params:
-      logger.info('load_pretrained: drop-head variant')
-      restored_params['pre_logits'] = {}
+      #logger.info('load_pretrained: drop-head variant')
+      #restored_params['pre_logits'] = {}
+      logger.info('No head drop out')
   restored_params['head']['kernel'] = init_params['head']['kernel']
   restored_params['head']['bias'] = init_params['head']['bias']
 
