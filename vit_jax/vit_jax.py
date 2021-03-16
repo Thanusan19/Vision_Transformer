@@ -79,6 +79,21 @@ def _shard(data):
   data['label'] = tf.reshape(data['label'], [num_devices, -1, 166]) #2
   return data
 
+
+def get_accuracy(params_repl):
+  """Returns accuracy evaluated on the test set."""
+  good = total = 0
+  #steps = input_pipeline.get_dataset_info(dataset, 'test')['num_examples'] // batch_size
+  steps = 20000 // batch_size
+  for _, batch in zip(tqdm.trange(steps), ds_test.as_numpy_iterator()):
+  #for _, batch in zip(steps, ds_test.as_numpy_iterator()):  
+    predicted = vit_apply_repl(params_repl, batch['image'])
+    is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
+    good += is_same.sum()
+    total += len(is_same.flatten())
+  return good / total
+
+
 def plot_confusion_matrix(data, labels, output_filename):
     """Plot confusion matrix using heatmap.
     Args:
@@ -106,6 +121,18 @@ def plot_confusion_matrix(data, labels, output_filename):
     plt.savefig(output_filename)
     plt.close()
 
+
+def get_predict_labels_on_test_data(params_repl):
+  """Returns Predicted Class list and Label Class list """
+
+  steps = 20000 // batch_size
+  predicted = []
+  labels = []
+  for _, batch in zip(tqdm.trange(steps), ds_test.as_numpy_iterator()):
+    predicted.append(vit_apply_repl(params_repl, batch['image']).argmax(axis=-1))
+    labels.append(batch['label'].argmax(axis=-1))
+
+  return predicted, labels
 
 ##############
 #LOAD DATASET#
@@ -268,25 +295,8 @@ params_repl = flax.jax_utils.replicate(params)
 print('params.cls:', type(params['cls']).__name__, params['cls'].shape)
 print('params_repl.cls:', type(params_repl['cls']).__name__, params_repl['cls'].shape)
 
-
-
 # Then map the call to our model's forward pass into all available devices.
 vit_apply_repl = jax.pmap(VisionTransformer.call)
-
-
-def get_accuracy(params_repl):
-  """Returns accuracy evaluated on the test set."""
-  good = total = 0
-  #steps = input_pipeline.get_dataset_info(dataset, 'test')['num_examples'] // batch_size
-  steps = 20000 // batch_size
-  for _, batch in zip(tqdm.trange(steps), ds_test.as_numpy_iterator()):
-  #for _, batch in zip(steps, ds_test.as_numpy_iterator()):  
-    predicted = vit_apply_repl(params_repl, batch['image'])
-    is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
-    good += is_same.sum()
-    total += len(is_same.flatten())
-  return good / total
-
 
 # Random performance without fine-tuning.
 if 0:
@@ -386,19 +396,6 @@ if FINE_TUNE :
   checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_diatom_final_checkpoints.npz")
 
 
-
-
-def get_predict_labels_on_test_data(params_repl):
-  """Returns Predicted Class list and Label Class list """
-
-  steps = 20000 // batch_size
-  predicted = []
-  labels = []
-  for _, batch in zip(tqdm.trange(steps), ds_test.as_numpy_iterator()):
-    predicted.append(vit_apply_repl(params_repl, batch['image']).argmax(axis=-1))
-    labels.append(batch['label'].argmax(axis=-1))
-
-  return predicted, labels
 
 
 if CHECKPOINTS_TEST:
