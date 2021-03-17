@@ -132,11 +132,16 @@ def plot_confusion_matrix(cm, title, img_save_filename, cmap=None, normalize=Tru
 
     """
 
+    cm = cm.numpy()
+
     if cmap is None:
-      cmap = plt.get_cmap('Jet') #Blues
+      cmap = plt.get_cmap('jet') #Blues
 
     if normalize:
-      cm = cm.astype('float') / cm.sum()
+      nbr_sample_per_classe = cm.sum(axis=1)
+      nbr_sample_per_classe[nbr_sample_per_classe==0] = 1
+      #Divide each row per nbr_sample_per_classe
+      cm = cm / nbr_sample_per_classe[:,None]
 
     if log_scale :
       cm = np.log(cm)
@@ -242,13 +247,14 @@ else:
                     train_prop=0.8,
                     doDataAugmentation=False)
 
+   print("dgscts_train : ", dgscts_train.getDataset())
+
    ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
    ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
    
    ds_train = ds_train.repeat()
    ds_test = ds_test.repeat()
 
-   print("get Dataset works")
 
    if num_devices is not None:
      ds_train = ds_train.map(_shard, tf.data.experimental.AUTOTUNE)
@@ -257,7 +263,6 @@ else:
    ds_test = ds_test.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
    ds_train = ds_train.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
-   print("Prefetch Works")
 
    print("ds_train : ",ds_train)
    print("ds_test : ",ds_test)
@@ -434,7 +439,8 @@ if CHECKPOINTS_TEST:
       [(batch['image'].shape[1:], batch['image'].dtype.name)])
 
 
-  checkpoints_file_path = "../models/model_diatom_final_checkpoints_with_data_aug.npz"
+  #checkpoints_file_path = "../models/model_diatom_final_checkpoints_with_data_aug.npz"
+  checkpoints_file_path = "../models/model_diatom_final_checkpoints.npz"
   params = checkpoint.load_pretrained_after_fine_tuning(
     pretrained_path=checkpoints_file_path,
     init_params=params,
@@ -462,7 +468,7 @@ if CHECKPOINTS_TEST:
 
   print(confusion_matrix)
 
-  plot_confusion_matrix(confusion_matrix, labels, "confusion_matrix_dataAug.png")
+  plot_confusion_matrix(confusion_matrix, "Confusion Matrix Diatom", "confusion_matrix.png")
 
 
 ###########
