@@ -31,8 +31,8 @@ model = 'ViT-B_16'
 
 logger = logging_ViT.setup_logger('./logs')
 INFERENCE = False
-FINE_TUNE = True
-CHECKPOINTS_TEST = False
+FINE_TUNE = False
+CHECKPOINTS_TEST = True
 
 # Helper functions for images.
 
@@ -110,7 +110,7 @@ def plot_confusion_matrix(data, labels, output_filename):
     #seaborn.set(font_scale=1.4)
     #ax = seaborn.heatmap(data, annot=True, cmap="YlGnBu", cbar_kws={'label': 'Scale'})
 
-    ax = seaborn.heatmap(data)
+    ax = seaborn.heatmap(data, annot=True, fmt="d")
 
     #ax.set_xticklabels(labels)
     #ax.set_yticklabels(labels)
@@ -268,16 +268,6 @@ params = checkpoint.load_pretrained(
 )
 
 
-#Checpoints test
-#params = checkpoint.load_pretrained(
-#    pretrained_path=f'../models/model_diatom_checkpoint_step_6000.npz', 
-#    init_params=params,
-#    model_config=models.CONFIGS[model],
-#    logger=logger,
-#)
-
-
-
 ################################################
 #EVALUATE PRE-TRAINED MODEL BEFORE FINE-TUNNING#
 ################################################
@@ -410,14 +400,14 @@ if CHECKPOINTS_TEST:
       # Discard the "num_local_devices" dimension of the batch for initialization.
       [(batch['image'].shape[1:], batch['image'].dtype.name)])
 
-  params = checkpoint.load_pretrained(
-    pretrained_path='../models/model_diatom_final_checkpoints.npz',
+
+  checkpoints_file_path = "../models/model_diatom_final_checkpoints_with_data_aug.npz"
+  params = checkpoint.load_pretrained_after_fine_tuning(
+    pretrained_path=checkpoints_file_path,
     init_params=params,
     model_config=models.CONFIGS[model],
     logger=logger,
   )
-
-  params = checkpoint.load('../models/model_diatom_final_checkpoints.npz')
 
   print('params.cls:', type(params['cls']).__name__, params['cls'].shape)
   print('params_repl.cls:', type(params_repl['cls']).__name__, params_repl['cls'].shape)
@@ -425,8 +415,9 @@ if CHECKPOINTS_TEST:
   # Then map the call to our model's forward pass into all available devices.
   vit_apply_repl = jax.pmap(VisionTransformer.call)
 
-  acc = get_accuracy(params_repl)
-  print("Accuracy of the pre-trained model after fine-tunning", acc)
+  params_repl = flax.jax_utils.replicate(params)
+  #acc = get_accuracy(params_repl)
+  #print("Accuracy of the pre-trained model after fine-tunning", acc)
 
 
   #Confusion Matrix
@@ -438,7 +429,7 @@ if CHECKPOINTS_TEST:
 
   print(confusion_matrix)
 
-  plot_confusion_matrix(confusion_matrix, labels, "confusion_matrix.png")
+  plot_confusion_matrix(confusion_matrix, labels, "confusion_matrix_dataAug.png")
 
 
 ###########

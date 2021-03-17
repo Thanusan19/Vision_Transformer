@@ -213,16 +213,100 @@ def load_pretrained(*, pretrained_path, init_params, model_config, logger):
   #    layer (logits) for the new task.
   if model_config.representation_size is None:
     if 'pre_logits' in restored_params:
-      #logger.info('load_pretrained: drop-head variant')
-      #restored_params['pre_logits'] = {}
-      logger.info('No head drop out')
-  #restored_params['head']['kernel'] = init_params['head']['kernel']
-  #restored_params['head']['bias'] = init_params['head']['bias']
+      logger.info('load_pretrained: drop-head variant')
+      restored_params['pre_logits'] = {}
+  restored_params['head']['kernel'] = init_params['head']['kernel']
+  restored_params['head']['bias'] = init_params['head']['bias']
+  
+  print("Restored Param shape : ", np.array(restored_params['head']['kernel']).shape)
+  print("Restored Param : ", restored_params['head']['kernel'])
+  print("Init Param shape : ", np.array(init_params['head']['kernel']).shape)
+  print("Init Param : ", init_params['head']['kernel'])
 
   if 'posembed_input' in restored_params.get('Transformer', {}):
     # Rescale the grid of position embeddings. Param shape is (1,N,1024)
     posemb = restored_params['Transformer']['posembed_input']['pos_embedding']
     posemb_new = init_params['Transformer']['posembed_input']['pos_embedding']
+    if posemb.shape != posemb_new.shape:
+      logger.info('load_pretrained: resized variant: %s to %s', posemb.shape,
+                  posemb_new.shape)
+      ntok_new = posemb_new.shape[1]
+
+      if model_config.classifier == 'token':
+        posemb_tok, posemb_grid = posemb[:, :1], posemb[0, 1:]
+        ntok_new -= 1
+      else:
+        posemb_tok, posemb_grid = posemb[:, :0], posemb[0]
+
+      gs_old = int(np.sqrt(len(posemb_grid)))
+      gs_new = int(np.sqrt(ntok_new))
+      logger.info('load_pretrained: grid-size from %s to %s', gs_old, gs_new)
+      posemb_grid = posemb_grid.reshape(gs_old, gs_old, -1)
+
+      zoom = (gs_new / gs_old, gs_new / gs_old, 1)
+      posemb_grid = scipy.ndimage.zoom(posemb_grid, zoom, order=1)
+      posemb_grid = posemb_grid.reshape(1, gs_new * gs_new, -1)
+      posemb = jnp.array(np.concatenate([posemb_tok, posemb_grid], axis=1))
+      restored_params['Transformer']['posembed_input']['pos_embedding'] = posemb
+
+  return restored_params
+
+
+
+def load_pretrained_after_fine_tuning(*, pretrained_path, init_params, model_config, logger):
+  """Loads/converts a pretrained checkpoint for fine tuning.
+  
+  Args:
+    pretrained_path: File pointing to pretrained checkpoint.
+    init_params: Parameters from model. Will be used for the head of the model
+      and to verify that the model is compatible with the stored checkpoint.
+    model_config: Configuration of the model. Will be used to configure the
+      head and rescale the position embeddings.
+    logger: Logger to use to output diagnostic messages.
+
+  Returns:
+    Parameters like `init_params`, but loaded with pretrained weights from
+    `pretrained_path` and adapted accordingly.
+  """
+
+  restored_params = inspect_params(
+      params=load(pretrained_path),
+      expected=init_params,
+      logger=logger,
+      fail_if_extra=False,
+      fail_if_missing=False)
+
+  # The following allows implementing fine-tuning head variants depending on the
+  # value of `representation_size` in the fine-tuning job:
+  # - `None` : drop the whole head and attach a nn.Linear.
+  # - same number as in pre-training means : keep the head but reset the last
+  #    layer (logits) for the new task.
+  if model_config.representation_size is None:
+    if 'pre_logits' in restored_params:
+      logger.info('load_pretrained: drop-head variant')
+      restored_params['pre_logits'] = {}
+      #logger.info('No head drop out')
+  #restored_params['head']['kernel'] = init_params['head']['kernel']
+  #restored_params['head']['bias'] = init_params['head']['bias']
+
+  #kernel = restored_params['head']['kernel']
+  #bias = restored_params['head']['bias']
+  
+  #init_params['head']['kernel'] = kernel
+  #init_params['head']['bias'] = bias
+
+  #restored_params['head']['kernel'] = init_params['head']['kernel']
+  #restored_params['head']['bias'] = init_params['head']['bias']
+  
+  print("Restored Param shape : ", np.array(restored_params['head']['kernel']).shape)
+  print("Restored Param : ", restored_params['head']['kernel'])
+  print("Init Param shape : ", np.array(init_params['head']['kernel']).shape)
+  print("Init Param : ", init_params['head']['kernel'])
+
+  if 'posembed_input' in restored_params.get('Transformer', {}):
+    # Rescale the grid of position embeddings. Param shape is (1,N,1024)
+    posemb = restored_params['Transformer']['posembed_input']['pos_embedding']
+    posemb_new = restored_params['Transformer']['posembed_input']['pos_embedding']  #init_params['Transformer']['posembed_input']['pos_embedding']
     if posemb.shape != posemb_new.shape:
       logger.info('load_pretrained: resized variant: %s to %s', posemb.shape,
                   posemb_new.shape)
