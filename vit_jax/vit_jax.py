@@ -122,6 +122,39 @@ def plot_confusion_matrix(data, labels, output_filename):
     plt.close()
 
 
+def plot_confusion_matrix(cm, title, img_save_filename, cmap=None, normalize=True, log_scale=True):
+    """Plot confusion matrix.
+
+    Args:
+        cm (list of list): List of lists with confusion matrix data.
+        title (str): Title of the confusion matrix image.
+        img_save_filename (str): Path to save confusion matrix image
+
+    """
+
+    if cmap is None:
+      cmap = plt.get_cmap('Jet') #Blues
+
+    if normalize:
+      cm = cm.astype('float') / cm.sum()
+
+    if log_scale :
+      cm = np.log(cm)
+
+    plt.figure(figsize=(8, 6))
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+
+    plt.savefig(img_save_filename)
+    plt.close()
+
+
+
 def get_predict_labels_on_test_data(params_repl):
   """Returns Predicted Class list and Label Class list """
 
