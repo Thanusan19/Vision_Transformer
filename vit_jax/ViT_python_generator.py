@@ -13,7 +13,7 @@ import numpy as np
 import cv2
 import random
 import math
-
+from sklearn.model_selection import train_test_split
 
 ######################################################################################
 #Functions to create the exclusion list and the global description
@@ -383,6 +383,11 @@ class MyDogsCats:
         c = list(zip(img_list, lbl_list))
         random.shuffle(c)
         img_list, lbl_list = zip(*c)
+
+        #Stratified Split into Train and Test dataset
+        X_train, X_test, y_train, y_test = train_test_split(img_list, lbl_list, test_size=0.2, random_state=42, stratify=lbl_list)
+        #Stratified Split into Train and Validation dataset
+        X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42, stratify=y_train)
 
         for i in range(self.num_samples):
             # Read the image
