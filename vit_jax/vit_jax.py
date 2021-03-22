@@ -33,8 +33,8 @@ model = 'ViT-B_16'
 
 logger = logging_ViT.setup_logger('./logs')
 INFERENCE = False
-FINE_TUNE = False
-CHECKPOINTS_TEST = True
+FINE_TUNE = True
+CHECKPOINTS_TEST = False
 
 # Helper functions for images.
 
@@ -276,10 +276,10 @@ elif(DATASET==1):
       train_prop=0.8, test_prop=0.2, doVal=False)
 
   dgscts_train = MyDogsCats(dataset_path='dataset/CatsAndDogs',
-      X=X_train, y=y_train, set_type='train', doDataAugmentation=False)
+      X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=False)
 
   dgscts_test = MyDogsCats(dataset_path='dataset/CatsAndDogs',
-      X=X_test, y=y_test, set_type='test', doDataAugmentation=False)
+      X=X_test, y=y_test, num_class=num_classes, set_type='test', doDataAugmentation=False)
 
   # dgscts_train = MyDogsCats(ds_description_path='dataset/CatsAndDogs/description.txt',
   #                 dataset_path='dataset/CatsAndDogs',
@@ -315,13 +315,13 @@ else:
       train_prop=0.7, test_prop=0.2, val_prop=0.1, doVal=True)
 
   dgscts_train = MyDogsCats(dataset_path='dataset/diatom_dataset',
-      X=X_train, y=y_train, set_type='train', doDataAugmentation=True)
+      X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=True)
 
   dgscts_test = MyDogsCats(dataset_path='dataset/diatom_dataset',
-      X=X_test, y=y_test, set_type='test', doDataAugmentation=False)
+      X=X_test, y=y_test, num_class=num_classes, set_type='test', doDataAugmentation=False)
   
   dgscts_val = MyDogsCats(dataset_path='dataset/diatom_dataset',
-      X=X_val, y=y_val, set_type='val', doDataAugmentation=False)
+      X=X_val, y=y_val, num_class=num_classes, set_type='val', doDataAugmentation=False)
 
   # dgscts_train = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
   #                 dataset_path='dataset/diatom_dataset',
@@ -427,7 +427,7 @@ if FINE_TUNE :
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  epochs = 600
+  epochs = 1 #600
   total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs;  #300
   print("Total nbr backward steps : ",total_steps)
   print("Total nbr epochs : ",epochs)

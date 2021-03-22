@@ -220,7 +220,7 @@ createGlobalDescription(dataset_dir_path=dataset_dir_path,
 #Create a training and a test set
 ######################################################################
 class MyDogsCats:
-    def __init__(self, dataset_path: str, X, y, set_type: str,
+    def __init__(self, dataset_path: str, X, y, num_class: int, set_type: str,
                  doDataAugmentation: bool = False) -> None:
         """
         ds_description_path : fichier avec les paths de chaque fichiers du dataset et sa classe
