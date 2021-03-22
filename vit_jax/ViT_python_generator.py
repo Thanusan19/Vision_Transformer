@@ -7,7 +7,6 @@ from os.path import dirname
 sys.path.append(dirname('/home/GPU/tsathiak/local_storage/Vision_Transformer'))
 
 
-from pathlib import Path
 import tensorflow as tf
 import numpy as np
 import cv2
