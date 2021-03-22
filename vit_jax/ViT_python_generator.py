@@ -235,6 +235,7 @@ class MyDogsCats:
         # Obtenir la liste de train OU de test
         self._img_list = X
         self._lbl_list = y
+
         # self._num_class = len(img_list_par_classes)
 
         # for num_class in img_list_par_classes:
@@ -283,7 +284,7 @@ class MyDogsCats:
         self._end_im_dim = np.array((self._end_im_size, self._end_im_size))
 
         self._num_channels = 3
-        self._one_hot_depth = self._num_class
+        self._one_hot_depth = num_class
 
         self._do_data_augmentation = doDataAugmentation
         # self._do_inception_crop = doInceptionCrop
