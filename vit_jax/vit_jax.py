@@ -23,6 +23,13 @@ sys.path.append(dirname('/home/GPU/tsathiak/local_storage/Vision_Transformer/'))
 from ViT_python_generator import MyDogsCats 
 import tensorflow as tf
 
+import functools
+import glob
+import os
+import time
+from clu import metric_writers
+
+
 
 # Shows the number of available devices.
 # In a CPU/GPU runtime this will be a single device.
@@ -31,6 +38,7 @@ jax.local_devices()
 # Pre-trained model name
 model = 'ViT-B_16'
 
+logdir = './logs'
 logger = logging_ViT.setup_logger('./logs')
 INFERENCE = False
 FINE_TUNE = True
@@ -338,17 +346,23 @@ else:
 
   ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
   ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
+  ds_val = dgscts_val.getDataset().batch(batch_size, drop_remainder=True)
   
   ds_train = ds_train.repeat()
   ds_test = ds_test.repeat()
+  ds_val = ds_val.repeat()
 
 
   if num_devices is not None:
     ds_train = ds_train.map(_shard, tf.data.experimental.AUTOTUNE)
     ds_test = ds_test.map(_shard, tf.data.experimental.AUTOTUNE)
+    ds_val = ds_val.map(_shard, tf.data.experimental.AUTOTUNE)
+
 
   ds_test = ds_test.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
   ds_train = ds_train.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+  ds_val = ds_val.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+
 
 
   print("ds_train : ", ds_train)
@@ -462,7 +476,22 @@ if FINE_TUNE :
 
   # The world's simplest training loop.
   # Completes in ~20 min on the TPU runtime.
+  def copyfiles(paths):
+    """Small helper to copy files to args.copy_to using tf.io.gfile."""
+    if not args.copy_to:
+      return
+    for path in paths:
+      to_path = os.path.join(args.copy_to, args.name, os.path.basename(path))
+      tf.io.gfile.makedirs(os.path.dirname(to_path))
+      tf.io.gfile.copy(path, to_path, overwrite=True)
+      logger.info(f'Copied {path} to {to_path}.')
+
   Loss_list = []
+  val_eval_every = 1
+  progress_every = 1
+  writer = metric_writers.create_default_writer(logdir, asynchronous=False)
+
+
   for step, batch, lr_repl in zip(
       tqdm.trange(1, total_steps + 1),
       ds_train.as_numpy_iterator(),
@@ -470,6 +499,37 @@ if FINE_TUNE :
   ):
     opt_repl, loss_repl, update_rngs = update_fn_repl(
         opt_repl, lr_repl, batch, update_rngs)
+
+    if step == 1:
+      logger.info(f'First step took {time.time() - t0:.1f} seconds.')
+      t0 = time.time()
+
+    if progress_every and step % progress_every == 0:
+      writer.write_scalars(step, dict(train_loss=float(loss_repl[0])))
+      done = step / total_steps
+      logger.info(f'Step: {step}/{total_steps} {100*done:.1f}%, '
+                  f'ETA: {(time.time()-t0)/done*(1-done)/3600:.2f}h')
+      copyfiles(glob.glob(f'{logdir}/*'))
+
+    # Run eval step
+    if ((val_eval_every and step % val_eval_every == 0) or
+        (step == total_steps)):
+
+      accuracy_test = np.mean([
+          c for batch in ds_val.as_numpy_iterator()
+          for c in (
+              np.argmax(vit_fn_repl(opt_repl.target, batch['image']),
+                        axis=2) == np.argmax(batch['label'], axis=2)).ravel()
+      ])
+
+      lr = float(lr_repl[0])
+      logger.info(f'Step: {step} '
+                  f'Learning rate: {lr:.7f}, '
+                  f'Test accuracy: {accuracy_test:0.5f}')
+      writer.write_scalars(step, dict(accuracy_test=accuracy_test, lr=lr))
+      copyfiles(glob.glob(f'{logdir}/*'))
+
+
     #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
     #save weights every 1000 training steps
