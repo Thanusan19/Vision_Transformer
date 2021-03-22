@@ -6,6 +6,7 @@ import numpy as np
 import tqdm
 import PIL
 import seaborn
+from sklearn.model_selection import train_test_split
 
 import checkpoint
 import input_pipeline
@@ -172,6 +173,64 @@ def get_predict_labels_on_test_data(params_repl):
 
   return predicted, labels
 
+# Function to read the description file, and split the file path and classes
+# into three sets
+def make_split_from_descfile(ds_description_path: str, dataset_path: str,
+                            train_prop: float, test_prop: float, doVal: bool=False, val_prop: float=0.0):
+
+  # Make sure the proportions are valid
+  assert(train_prop + val_prop + test_prop == 1.0)
+
+  # Lire le fichier de description et regrouper par classes
+  ## TODO Peut-etre pas besoin d'un dico mais juste d'une liste d'images ET une liste de labels.
+  # img_list_par_classes = {}
+  # path = Path(ds_description_path)
+  # with path.open('r') as file:
+  #   for line in file.readlines():
+  #     if line.endswith("\n"):
+  #       line = line[:-1]
+  #     splits = line.split("\t")
+
+  #     if line != "":
+  #       img_text = splits[0]
+  #       lbl_text = int(splits[1])
+
+  #       if lbl_text in img_list_par_classes.keys():
+  #         img_list_par_classes[lbl_text].append(img_text)
+  #       else:
+  #         img_list_par_classes[lbl_text] = [img_text]
+  
+  img_list = []
+  lbl_list = []
+  path = Path(ds_description_path)
+  with path.open('r') as file:
+    for line in file.readlines():
+      if line.endswith("\n"):
+        line = line[:-1]
+      splits = line.split("\t")
+
+      if line != "":
+        img_list.append(splits[0])
+        lbl_list.append(int(splits[1]))
+  
+
+  ## TODO : Comment : The random_state won't change a thing since our label list was written in arbitrary order
+  ## Except if we use the same description file.
+
+  # Stratified Split into Train and Test dataset
+  X_train, X_test, y_train, y_test = train_test_split(img_list, lbl_list, test_size=val_prop+test_prop, random_state=42, stratify=lbl_list)
+  
+  if doVal:
+    # Calculate the val proportion to the test proportion
+    val_prop_to_test = val_prop/test_prop
+
+    # Stratified Split into Train and Validation dataset
+    X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=val_prop_to_test, random_state=42, stratify=y_test)
+
+    return X_train, y_train, X_test, y_test, X_val, y_val
+  else:
+    return X_train, y_train, X_test, y_test
+
 ##############
 #LOAD DATASET#
 ##############
@@ -202,70 +261,97 @@ if(DATASET==0):
    )
 
 elif(DATASET==1):
-   print_banner("LOAD DATASET : CATS and DOGS")
+  print_banner("LOAD DATASET : CATS and DOGS")
 
-   num_devices = len(jax.local_devices())
+  num_devices = len(jax.local_devices())
 
-   # The bypass
-   num_classes = 2
-   dataset = 'dogscats'
-   dgscts_train = MyDogsCats(ds_description_path='dataset/CatsAndDogs/description.txt',
-                    dataset_path='dataset/CatsAndDogs',
-                    set_type='train',
-                    train_prop=0.8)
-   dgscts_test = MyDogsCats(ds_description_path='dataset/CatsAndDogs/description.txt',
-                    dataset_path='dataset/CatsAndDogs',
-                    set_type='test',
-                    train_prop=0.8)
+  # The bypass
+  num_classes = 2
+  dataset = 'dogscats'
 
-   ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
-   ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
+  X_train, y_train, X_test, y_test = make_split_from_descfile(
+      ds_description_path='dataset/diatom_dataset/description.txt',
+      dataset_path='dataset/diatom_dataset',
+      train_prop=0.8, test_prop=0.2, doVal=False)
 
-   if num_devices is not None:
-     ds_train = ds_train.map(_shard, tf.data.experimental.AUTOTUNE)
-     ds_test = ds_test.map(_shard, tf.data.experimental.AUTOTUNE)
+  dgscts_train = MyDogsCats(dataset_path='dataset/CatsAndDogs',
+      X=X_train, y=y_train, set_type='train', doDataAugmentation=False)
 
-   ds_test = ds_test.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-   ds_train = ds_train.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+  dgscts_test = MyDogsCats(dataset_path='dataset/CatsAndDogs',
+      X=X_test, y=y_test, set_type='test', doDataAugmentation=False)
+
+  # dgscts_train = MyDogsCats(ds_description_path='dataset/CatsAndDogs/description.txt',
+  #                 dataset_path='dataset/CatsAndDogs',
+  #                 set_type='train',
+  #                 train_prop=0.8)
+  # dgscts_test = MyDogsCats(ds_description_path='dataset/CatsAndDogs/description.txt',
+  #                 dataset_path='dataset/CatsAndDogs',
+  #                 set_type='test',
+  #                 train_prop=0.8)
+
+  ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
+  ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
+
+  if num_devices is not None:
+    ds_train = ds_train.map(_shard, tf.data.experimental.AUTOTUNE)
+    ds_test = ds_test.map(_shard, tf.data.experimental.AUTOTUNE)
+
+  ds_test = ds_test.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+  ds_train = ds_train.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
 else:
-   print_banner("LOAD DATASET : DIATOM")
+  print_banner("LOAD DATASET : DIATOM")
 
-   num_devices = len(jax.local_devices())
+  num_devices = len(jax.local_devices())
 
-   # The bypass
-   num_classes = 166
-   dataset = 'diatom'
-   dgscts_train = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
-                    dataset_path='dataset/diatom_dataset',
-                    set_type='train', #train
-                    train_prop=0.8,
-                    doDataAugmentation=True)
-   dgscts_test = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
-                    dataset_path='dataset/diatom_dataset',
-                    set_type='test',
-                    train_prop=0.8,
-                    doDataAugmentation=False)
+  # The bypass
+  num_classes = 166
+  dataset = 'diatom'
 
-   print("dgscts_train : ", dgscts_train.getDataset())
+  X_train, y_train, X_test, y_test, X_val, y_val = make_split_from_descfile(
+      ds_description_path='dataset/diatom_dataset/description.txt',
+      dataset_path='dataset/diatom_dataset',
+      train_prop=0.7, test_prop=0.2, val_prop=0.1, doVal=True)
 
-   ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
-   ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
-   
-   ds_train = ds_train.repeat()
-   ds_test = ds_test.repeat()
+  dgscts_train = MyDogsCats(dataset_path='dataset/diatom_dataset',
+      X=X_train, y=y_train, set_type='train', doDataAugmentation=True)
+
+  dgscts_test = MyDogsCats(dataset_path='dataset/diatom_dataset',
+      X=X_test, y=y_test, set_type='test', doDataAugmentation=False)
+  
+  dgscts_val = MyDogsCats(dataset_path='dataset/diatom_dataset',
+      X=X_val, y=y_val, set_type='val', doDataAugmentation=False)
+
+  # dgscts_train = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
+  #                 dataset_path='dataset/diatom_dataset',
+  #                 set_type='train', #train
+  #                 train_prop=0.8,
+  #                 doDataAugmentation=True)
+  # dgscts_test = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
+  #                 dataset_path='dataset/diatom_dataset',
+  #                 set_type='test',
+  #                 train_prop=0.8,
+  #                 doDataAugmentation=False)
+
+  print("dgscts_train : ", dgscts_train.getDataset())
+
+  ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
+  ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
+  
+  ds_train = ds_train.repeat()
+  ds_test = ds_test.repeat()
 
 
-   if num_devices is not None:
-     ds_train = ds_train.map(_shard, tf.data.experimental.AUTOTUNE)
-     ds_test = ds_test.map(_shard, tf.data.experimental.AUTOTUNE)
+  if num_devices is not None:
+    ds_train = ds_train.map(_shard, tf.data.experimental.AUTOTUNE)
+    ds_test = ds_test.map(_shard, tf.data.experimental.AUTOTUNE)
 
-   ds_test = ds_test.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-   ds_train = ds_train.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+  ds_test = ds_test.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+  ds_train = ds_train.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
 
-   print("ds_train : ",ds_train)
-   print("ds_test : ",ds_test)
+  print("ds_train : ", ds_train)
+  print("ds_test : ", ds_test)
 
 # Fetch a batch of test images for illustration purposes.
 batch = next(iter(ds_test.as_numpy_iterator()))

@@ -13,7 +13,6 @@ import numpy as np
 import cv2
 import random
 import math
-from sklearn.model_selection import train_test_split
 
 ######################################################################################
 #Functions to create the exclusion list and the global description
@@ -222,8 +221,8 @@ createGlobalDescription(dataset_dir_path=dataset_dir_path,
 #Create a training and a test set
 ######################################################################
 class MyDogsCats:
-    def __init__(self, ds_description_path: str, dataset_path: str, set_type: str,
-                 train_prop: float, doDataAugmentation: bool = False) -> None:
+    def __init__(self, dataset_path: str, X, y, set_type: str,
+                 doDataAugmentation: bool = False) -> None:
         """
         ds_description_path : fichier avec les paths de chaque fichiers du dataset et sa classe
         Exemple de fichier (tabulation entre le path et la classe):
@@ -232,58 +231,40 @@ class MyDogsCats:
             Etc ...
         """
 
-        # Lire le fichier de description et regrouper par classes
-        img_list_par_classes = {}
-        path = Path(ds_description_path)
-        with path.open('r') as file:
-            for line in file.readlines():
-                if line.endswith("\n"):
-                    line = line[:-1]
-                splits = line.split("\t")
-
-                if line != "":
-                    img_text = splits[0]
-                    lbl_text = int(splits[1])
-
-                    if lbl_text in img_list_par_classes.keys():
-                        img_list_par_classes[lbl_text].append(img_text)
-                    else:
-                        img_list_par_classes[lbl_text] = [img_text]
-
         #print(img_list_par_classes)
 
         # Obtenir la liste de train OU de test
-        self._img_list = []
-        self._lbl_list = []
-        self._num_class = len(img_list_par_classes)
+        self._img_list = X
+        self._lbl_list = y
+        # self._num_class = len(img_list_par_classes)
 
-        for num_class in img_list_par_classes:
-            # Definir les proportions
-            num_files_class_k = len(img_list_par_classes[num_class])
-            # num_files = len(img_list_par_classes[num_class])
-            if set_type == "train":
-                num_per_class_to_keep = math.ceil(num_files_class_k * train_prop)
-                # num_per_class_to_keep = math.ceil((num_files // self._num_class) * train_prop)
+        # for num_class in img_list_par_classes:
+        #     # Definir les proportions
+        #     num_files_class_k = len(img_list_par_classes[num_class])
+        #     # num_files = len(img_list_par_classes[num_class])
+        #     if set_type == "train":
+        #         num_per_class_to_keep = math.ceil(num_files_class_k * train_prop)
+        #         # num_per_class_to_keep = math.ceil((num_files // self._num_class) * train_prop)
 
-                class_files = img_list_par_classes[num_class][0:num_per_class_to_keep]
+        #         class_files = img_list_par_classes[num_class][0:num_per_class_to_keep]
 
-            elif set_type == "test":
-                num_per_class_to_keep = math.floor(
-                    num_files_class_k * (1 - train_prop))
-                # num_per_class_to_keep = math.floor((num_files // self._num_class) * (1 - train_prop))
+        #     elif set_type == "test":
+        #         num_per_class_to_keep = math.floor(
+        #             num_files_class_k * (1 - train_prop))
+        #         # num_per_class_to_keep = math.floor((num_files // self._num_class) * (1 - train_prop))
 
-                class_files = img_list_par_classes[num_class][-num_per_class_to_keep:]
+        #         class_files = img_list_par_classes[num_class][-num_per_class_to_keep:]
 
-            else:
-                class_files = img_list_par_classes[num_class]
+        #     else:
+        #         class_files = img_list_par_classes[num_class]
 
-            # Ajouter les images qui correspondent à la liste des images
-            self._img_list.extend(class_files)
-            # De même pour les labels
-            #print("num_class:", num_class)
-            #print("type num_class:", type(num_class))
-            #print("len num_class:", len(class_files))
-            self._lbl_list.extend([num_class for i in range(len(class_files))])
+        #     # Ajouter les images qui correspondent à la liste des images
+        #     self._img_list.extend(class_files)
+        #     # De même pour les labels
+        #     #print("num_class:", num_class)
+        #     #print("type num_class:", type(num_class))
+        #     #print("len num_class:", len(class_files))
+        #     self._lbl_list.extend([num_class for i in range(len(class_files))])
 
         #print("_img_list", self._img_list[0:100])
         #print("_lbl_list", self._lbl_list[0:100])
@@ -291,7 +272,7 @@ class MyDogsCats:
 
         self.num_samples = len(self._lbl_list)
 
-        if set_type == "train" or set_type == "test":
+        if set_type == "train" or set_type == "test" or set_type == "val":
             self._set_type = set_type
         else:
             self._set_type = "whole"
@@ -384,10 +365,10 @@ class MyDogsCats:
         random.shuffle(c)
         img_list, lbl_list = zip(*c)
 
-        #Stratified Split into Train and Test dataset
-        X_train, X_test, y_train, y_test = train_test_split(img_list, lbl_list, test_size=0.2, random_state=42, stratify=lbl_list)
-        #Stratified Split into Train and Validation dataset
-        X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42, stratify=y_train)
+        # #Stratified Split into Train and Test dataset
+        # X_train, X_test, y_train, y_test = train_test_split(img_list, lbl_list, test_size=0.2, random_state=42, stratify=lbl_list)
+        # #Stratified Split into Train and Validation dataset
+        # X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42, stratify=y_train)
 
         for i in range(self.num_samples):
             # Read the image
