@@ -141,7 +141,7 @@ def cross_entropy_loss(*, logits, labels):
   logp = jax.nn.log_softmax(logits)
   return -jnp.mean(jnp.sum(logp * labels, axis=1))
 
-def loss_fn(params, images, labels):
+def loss_fn(params, update_rng, images, labels):
   with flax.nn.stochastic(update_rng):
     logits = VisionTransformer.call(params, images, train=True)
   return cross_entropy_loss(logits=logits, labels=labels)
@@ -336,7 +336,7 @@ DATASET = 2 --> DIATOM dataset
 """
 DATASET = 2
 # 127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
-batch_size = 512
+batch_size = 64 #512
 
 
 if(DATASET == 0):
@@ -582,7 +582,7 @@ if FINE_TUNE:
     #   loss_val_list.append(val_loss)
     #   print("val_loss : ",val_loss)
 
-    val_loss = loss_fn(opt_repl.target, batch_val['image'], batch_val['label'])
+    val_loss = loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
     print("val_loss : ",val_loss)
 
 
