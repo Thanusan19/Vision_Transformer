@@ -113,7 +113,7 @@ def get_accuracy_val(params_repl, nbr_samples):
   """Returns accuracy evaluated on the val set."""
   good = total = 0
   steps = nbr_samples // batch_size
-  
+
   for _, batch in zip(tqdm.trange(steps), ds_val.as_numpy_iterator()):
     predicted = vit_apply_repl(params_repl, batch['image'])
     is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
@@ -555,7 +555,8 @@ if FINE_TUNE:
     if ((val_eval_every and step % val_eval_every == 0) or
             (step == total_steps)):
 
-      accuracy_val = get_accuracy_val(opt_repl.target)
+      nbr_samples = dgscts_val.get_num_samples()
+      accuracy_val = get_accuracy_val(opt_repl.target, nbr_samples)
 
       lr = float(lr_repl[0])
       logger.info(f'Step: {step} '
@@ -582,7 +583,8 @@ if FINE_TUNE:
 
   #Evaluate test accuracy
   if 1:
-    acc = get_accuracy(opt_repl.target)
+    nbr_samples = dgscts_val.get_num_samples() 
+    acc = get_accuracy(opt_repl.target, nbr_samples)
     print("Accuracy of the pre-trained model after fine-tunning", acc)
     f = open("acc_log.txt", "w")
     f.write(f"Accuracy of the pre-trained model after fine-tunning : {acc}")
