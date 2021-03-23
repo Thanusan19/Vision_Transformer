@@ -315,6 +315,8 @@ else:
       ds_description_path='dataset/diatom_dataset/description.txt',
       dataset_path='dataset/diatom_dataset',
       train_prop=0.7, test_prop=0.2, val_prop=0.1, doVal=True)
+  
+  print(X_train.shape, X_test.shape, X_val.shape)
 
   dgscts_train = MyDogsCats(dataset_path='dataset/diatom_dataset',
                             X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=True)
