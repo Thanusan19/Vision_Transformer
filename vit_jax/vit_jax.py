@@ -124,16 +124,17 @@ def get_accuracy_val(params_repl, nbr_samples):
   return good / total
 
 
-def get_accuracy_train(params_repl, nbr_samples):
+def get_accuracy_train(params_repl, nbr_samples, batch):
   """Returns accuracy evaluated on the val set."""
   good = total = 0
-  steps = nbr_samples // batch_size
+  #steps = nbr_samples // batch_size
 
-  for _, batch in zip(tqdm.trange(steps), ds_train.as_numpy_iterator()):
-    predicted = vit_apply_repl(params_repl, batch['image'])
-    is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
-    good += is_same.sum()
-    total += len(is_same.flatten())
+  #for _, batch in zip(tqdm.trange(steps), ds_train.as_numpy_iterator()):
+  predicted = vit_apply_repl(params_repl, batch['image'])
+  is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
+  good += is_same.sum()
+  total += len(is_same.flatten())
+
   return good / total
 
 
@@ -336,7 +337,7 @@ DATASET = 2 --> DIATOM dataset
 """
 DATASET = 2
 # 127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
-batch_size = 64 #512
+batch_size = 256 #512
 
 
 if(DATASET == 0):
@@ -582,7 +583,7 @@ if FINE_TUNE:
     #   loss_val_list.append(val_loss)
     #   print("val_loss : ",val_loss)
 
-    val_loss = loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
+    val_loss = 1 #loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
     print("val_loss : ",val_loss)
 
 
@@ -605,12 +606,15 @@ if FINE_TUNE:
 
       #Get training accuracy
       nbr_train_samples = dgscts_train.get_num_samples()
-      accuracy_train = get_accuracy_train(opt_repl.target, nbr_train_samples)
+      accuracy_train = get_accuracy_train(opt_repl.target, nbr_train_samples, batch)
 
       lr = float(lr_repl[0])
       logger.info(f'Step: {step} '
                   f'Learning rate: {lr:.7f}, '
-                  f'Validation accuracy: {accuracy_val:0.5f}')
+                  f'Validation accuracy: {accuracy_val:0.5f}'
+                  f'Training accuracy: {accuracy_train:0.5f}'
+                  f'Training Loss: {loss_repl:0.5f}'
+                  f'Validation Loss: {val_loss:0.5f}')
 
     #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
