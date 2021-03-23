@@ -542,6 +542,12 @@ if FINE_TUNE:
     opt_repl, loss_repl, update_rngs = update_fn_repl(
         opt_repl, lr_repl, batch, update_rngs)
 
+    #Loss of validation set 
+    for batch in ds_val.as_numpy_iterator():
+      val_loss = update_fn_repl.loss_fn(opt_repl.target, batch['image'], batch['label'])
+      print("val_loss : ",val_loss)
+
+
     if step == 1:
       logger.info(f'First step took {time.time() - t0:.1f} seconds.')
       t0 = time.time()
