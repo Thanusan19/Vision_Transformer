@@ -24,6 +24,8 @@ import train
 import hyper
 import logging_ViT
 import flax.jax_utils as flax_utils
+import jax.numpy as jnp
+
 
 from os.path import dirname
 sys.path.append(
@@ -120,6 +122,17 @@ def get_accuracy_val(params_repl, nbr_samples):
     good += is_same.sum()
     total += len(is_same.flatten())
   return good / total
+
+
+
+def cross_entropy_loss(*, logits, labels):
+  logp = jax.nn.log_softmax(logits)
+  return -jnp.mean(jnp.sum(logp * labels, axis=1))
+
+def loss_fn(params, images, labels):
+  with flax.nn.stochastic(update_rng):
+    logits = VisionTransformer.call(params, images, train=True)
+  return cross_entropy_loss(logits=logits, labels=labels)
 
 
 def learning_curve_per_train_steps(Loss_list):
@@ -544,7 +557,7 @@ if FINE_TUNE:
 
     #Loss of validation set 
     for batch in ds_val.as_numpy_iterator():
-      val_loss = update_fn_repl.loss_fn(opt_repl.target, batch['image'], batch['label'])
+      val_loss = loss_fn(opt_repl.target, batch['image'], batch['label'])
       print("val_loss : ",val_loss)
 
 
