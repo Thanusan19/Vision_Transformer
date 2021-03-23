@@ -124,6 +124,18 @@ def get_accuracy_val(params_repl, nbr_samples):
   return good / total
 
 
+def get_accuracy_train(params_repl, nbr_samples):
+  """Returns accuracy evaluated on the val set."""
+  good = total = 0
+  steps = nbr_samples // batch_size
+
+  for _, batch in zip(tqdm.trange(steps), ds_train.as_numpy_iterator()):
+    predicted = vit_apply_repl(params_repl, batch['image'])
+    is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
+    good += is_same.sum()
+    total += len(is_same.flatten())
+  return good / total
+
 
 def cross_entropy_loss(*, logits, labels):
   logp = jax.nn.log_softmax(logits)
@@ -147,30 +159,36 @@ def learning_curve_per_train_steps(Loss_list):
   fig.savefig('Learning_curve_plot_diatom_per_training_steps.png')
 
 
-def plot_learning_curve_per_epochs(train_loss_per_training_steps, steps_per_epoch, total_steps):
+def plot_learning_curve_per_epochs(train_loss_per_training_steps, val_loss_per_training_steps, steps_per_epoch, total_steps):
   """Plot learning Curve per epochs"""
   Loss_per_epochs = []
+  val_loss_per_epochs = []
   for i in range(0, total_steps, steps_per_epoch):
      Loss_per_epochs.append(train_loss_per_training_steps[i])
+     val_loss_per_epochs.append(val_loss_per_training_steps[i])
 
   fig = plt.figure()
   plt.title('Learning Curve : Diatom Dataset')
-  plt.plot(Loss_per_epochs)
+  plt.plot(Loss_per_epochs, 'b', label='train')
+  plt.plot(val_loss_per_epochs, 'g', label='val')
   plt.yscale('log')
   plt.xlabel('Epochs')
   plt.ylabel('Loss : Cross Entropy')
   fig.savefig('Learning_curve_plot_diatom_per_epochs.png')
 
 
-def plot_acc_per_epochs(val_acc_per_training_steps, steps_per_epoch, total_steps):
+def plot_acc_per_epochs(train_acc_per_training_steps, val_acc_per_training_steps, steps_per_epoch, total_steps):
   """Plot learning Curve per epochs"""
   val_acc_per_epochs = []
+  train_acc_per_epochs = []
   for i in range(0, total_steps, steps_per_epoch):
      val_acc_per_epochs.append(val_acc_per_training_steps[i])
+     train_acc_per_epochs.append(train_acc_per_training_steps[i])
 
   fig = plt.figure()
   plt.title('Acc Curve : Diatom Dataset')
-  plt.plot(val_acc_per_epochs)
+  plt.plot(train_acc_per_epochs, 'b',label='train')
+  plt.plot(val_acc_per_epochs, 'g', label='val')
   plt.yscale('log')
   plt.xlabel('Epochs')
   plt.ylabel('Accuracy')
@@ -540,14 +558,17 @@ if FINE_TUNE:
 
   # Training loop.
   Loss_list = []
+  loss_val_list = []
   accuracy_val_list = []
+  accuracy_train_list = []
   val_eval_every = 1
   progress_every = 1
   t0 = time.time()
 
-  for step, batch, lr_repl in zip(
+  for step, batch, batch_val, lr_repl in zip(
       tqdm.trange(1, total_steps + 1),
       ds_train.as_numpy_iterator(),
+      ds_val.as_numpy_iterator(),
       lr_iter
   ):
 
@@ -556,9 +577,13 @@ if FINE_TUNE:
         opt_repl, lr_repl, batch, update_rngs)
 
     #Loss of validation set 
-    for batch in ds_val.as_numpy_iterator():
-      val_loss = loss_fn(opt_repl.target, batch['image'], batch['label'])
-      print("val_loss : ",val_loss)
+    # for batch in ds_val.as_numpy_iterator():
+    #   val_loss = loss_fn(opt_repl.target, batch['image'], batch['label'])
+    #   loss_val_list.append(val_loss)
+    #   print("val_loss : ",val_loss)
+
+    val_loss = loss_fn(opt_repl.target, batch_val['image'], batch_val['label'])
+    print("val_loss : ",val_loss)
 
 
     if step == 1:
@@ -574,8 +599,13 @@ if FINE_TUNE:
     if ((val_eval_every and step % val_eval_every == 0) or
             (step == total_steps)):
 
-      nbr_samples = dgscts_val.get_num_samples()
-      accuracy_val = get_accuracy_val(opt_repl.target, nbr_samples)
+      #Get validation accuracy
+      nbr_val_samples = dgscts_val.get_num_samples()
+      accuracy_val = get_accuracy_val(opt_repl.target, nbr_val_samples)
+
+      #Get training accuracy
+      nbr_train_samples = dgscts_train.get_num_samples()
+      accuracy_train = get_accuracy_train(opt_repl.target, nbr_train_samples)
 
       lr = float(lr_repl[0])
       logger.info(f'Step: {step} '
@@ -584,7 +614,12 @@ if FINE_TUNE:
 
     #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
+    loss_val_list.append(val_loss)
+
+    #Store Accuracy calculate for each trainig step
     accuracy_val_list.append(accuracy_val)
+    accuracy_train_list.append(accuracy_train)
+
     #save weights every 1000 training steps
     if(step % 1000 == 0):
        checkpoint.save(flax_utils.unreplicate(opt_repl.target),
@@ -595,10 +630,10 @@ if FINE_TUNE:
   steps_per_epoch = dgscts_train.get_num_samples()//batch_size
 
   #Plot Loss per epochs
-  plot_learning_curve_per_epochs(Loss_list, steps_per_epoch, total_steps)
+  plot_learning_curve_per_epochs(Loss_list, loss_val_list, steps_per_epoch, total_steps)
 
   #Plot Val per epochs
-  plot_acc_per_epochs(accuracy_val_list, steps_per_epoch, total_steps)
+  plot_acc_per_epochs(accuracy_train_list, accuracy_val_list, steps_per_epoch, total_steps)
 
   #Evaluate test accuracy
   if 1:
