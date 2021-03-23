@@ -488,6 +488,7 @@ if FINE_TUNE:
   val_eval_every = 1
   progress_every = 1
   writer = metric_writers.create_default_writer(logdir, asynchronous=False)
+  t0 = time.time()
 
   for step, batch, lr_repl in zip(
       tqdm.trange(1, total_steps + 1),
@@ -498,8 +499,8 @@ if FINE_TUNE:
         opt_repl, lr_repl, batch, update_rngs)
 
     if step == 1:
-      t0 = time.time()
       logger.info(f'First step took {time.time() - t0:.1f} seconds.')
+      t0 = time.time()
 
     if progress_every and step % progress_every == 0:
       writer.write_scalars(step, dict(train_loss=float(loss_repl[0])))
