@@ -110,6 +110,20 @@ def get_accuracy(params_repl):
   return good / total
 
 
+def get_accuracy_val(params_repl):
+  """Returns accuracy evaluated on the val set."""
+  good = total = 0
+  #steps = input_pipeline.get_dataset_info(dataset, 'test')['num_examples'] // batch_size
+  steps = 1000 // batch_size
+  for _, batch in zip(tqdm.trange(steps), ds_val.as_numpy_iterator()):
+    #for _, batch in zip(steps, ds_test.as_numpy_iterator()):
+    predicted = vit_apply_repl(params_repl, batch['image'])
+    is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
+    good += is_same.sum()
+    total += len(is_same.flatten())
+  return good / total
+
+
 def plot_confusion_matrix(data, labels, output_filename):
     """Plot confusion matrix using heatmap.
     Args:
@@ -439,7 +453,7 @@ if FINE_TUNE:
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  epochs = 1  # 600
+  epochs = 2  # 600
   total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs  # 300
   print("Total nbr backward steps : ", total_steps)
   print("Total nbr epochs : ", epochs)
@@ -489,6 +503,7 @@ if FINE_TUNE:
   progress_every = 1
   writer = metric_writers.create_default_writer(logdir, asynchronous=False)
   t0 = time.time()
+  vit_fn_repl = jax.pmap(VisionTransformer.call)
 
   for step, batch, lr_repl in zip(
       tqdm.trange(1, total_steps + 1),
@@ -507,25 +522,26 @@ if FINE_TUNE:
       done = step / total_steps
       logger.info(f'Step: {step}/{total_steps} {100*done:.1f}%, '
                   f'ETA: {(time.time()-t0)/done*(1-done)/3600:.2f}h')
-      copyfiles(glob.glob(f'{logdir}/*'))
+      #copyfiles(glob.glob(f'{logdir}/*'))
 
     # Run eval step
     if ((val_eval_every and step % val_eval_every == 0) or
             (step == total_steps)):
 
-      accuracy_test = np.mean([
-          c for batch in ds_val.as_numpy_iterator()
-          for c in (
-              np.argmax(vit_fn_repl(opt_repl.target, batch['image']),
-                        axis=2) == np.argmax(batch['label'], axis=2)).ravel()
-      ])
+      accuracy_test = get_accuracy_val(opt_repl.target)
+      #accuracy_test = np.mean([
+      #    c for batch in ds_val.as_numpy_iterator()
+      #    for c in (
+      #        np.argmax(vit_fn_repl(opt_repl.target, batch['image']),
+      #                  axis=2) == np.argmax(batch['label'], axis=2)).ravel()
+      #])
 
       lr = float(lr_repl[0])
       logger.info(f'Step: {step} '
                   f'Learning rate: {lr:.7f}, '
                   f'Test accuracy: {accuracy_test:0.5f}')
-      writer.write_scalars(step, dict(accuracy_test=accuracy_test, lr=lr))
-      copyfiles(glob.glob(f'{logdir}/*'))
+      #writer.write_scalars(step, dict(accuracy_test=accuracy_test, lr=lr))
+      #copyfiles(glob.glob(f'{logdir}/*'))
 
     #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
