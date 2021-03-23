@@ -96,13 +96,12 @@ def _shard(data):
   return data
 
 
-def get_accuracy(params_repl):
+def get_accuracy(params_repl, nbr_samples):
   """Returns accuracy evaluated on the test set."""
   good = total = 0
-  #steps = input_pipeline.get_dataset_info(dataset, 'test')['num_examples'] // batch_size
-  steps = 20000 // batch_size
+  steps = nbr_samples // batch_size #20000 // batch_size
+
   for _, batch in zip(tqdm.trange(steps), ds_test.as_numpy_iterator()):
-    #for _, batch in zip(steps, ds_test.as_numpy_iterator()):
     predicted = vit_apply_repl(params_repl, batch['image'])
     is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
     good += is_same.sum()
@@ -110,18 +109,59 @@ def get_accuracy(params_repl):
   return good / total
 
 
-def get_accuracy_val(params_repl):
+def get_accuracy_val(params_repl, nbr_samples):
   """Returns accuracy evaluated on the val set."""
   good = total = 0
-  #steps = input_pipeline.get_dataset_info(dataset, 'test')['num_examples'] // batch_size
-  steps = 1000 // batch_size
+  steps = nbr_samples // batch_size
+  
   for _, batch in zip(tqdm.trange(steps), ds_val.as_numpy_iterator()):
-    #for _, batch in zip(steps, ds_test.as_numpy_iterator()):
     predicted = vit_apply_repl(params_repl, batch['image'])
     is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
     good += is_same.sum()
     total += len(is_same.flatten())
   return good / total
+
+
+def learning_curve_per_train_steps(Loss_list):
+  """Plot learning Curve every trainnig steps"""
+  print(Loss_list)
+  fig = plt.figure()
+  plt.title('Learning Curve : Diatom Dataset')
+  plt.plot(Loss_list)
+  plt.yscale('log')
+  plt.xlabel('training_steps')
+  plt.ylabel('Loss : Cross Entropy')
+  fig.savefig('Learning_curve_plot_diatom_per_training_steps.png')
+
+
+def plot_learning_curve_per_epochs(train_loss_per_training_steps, steps_per_epoch, total_steps):
+  """Plot learning Curve per epochs"""
+  Loss_per_epochs = []
+  for i in range(0, total_steps, steps_per_epoch):
+     Loss_per_epochs.append(train_loss_per_training_steps[i])
+
+  fig = plt.figure()
+  plt.title('Learning Curve : Diatom Dataset')
+  plt.plot(Loss_per_epochs)
+  plt.yscale('log')
+  plt.xlabel('Epochs')
+  plt.ylabel('Loss : Cross Entropy')
+  fig.savefig('Learning_curve_plot_diatom_per_epochs.png')
+
+
+def plot_acc_per_epochs(val_acc_per_training_steps, steps_per_epoch, total_steps):
+  """Plot learning Curve per epochs"""
+  val_acc_per_epochs = []
+  for i in range(0, total_steps, steps_per_epoch):
+     val_acc_per_epochs.append(val_acc_per_training_steps[i])
+
+  fig = plt.figure()
+  plt.title('Acc Curve : Diatom Dataset')
+  plt.plot(val_acc_per_epochs)
+  plt.yscale('log')
+  plt.xlabel('Epochs')
+  plt.ylabel('Accuracy')
+  fig.savefig('Acc_curve_plot_diatom_per_epochs.png')
 
 
 def plot_confusion_matrix(data, labels, output_filename):
@@ -453,7 +493,7 @@ if FINE_TUNE:
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  epochs = 2  # 600
+  epochs = 1  # 600
   total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs  # 300
   print("Total nbr backward steps : ", total_steps)
   print("Total nbr epochs : ", epochs)
@@ -485,31 +525,20 @@ if FINE_TUNE:
   update_rngs = jax.random.split(
       jax.random.PRNGKey(0), jax.local_device_count())
 
-  # The world's simplest training loop.
-  # Completes in ~20 min on the TPU runtime.
-
-  def copyfiles(paths):
-    """Small helper to copy files to args.copy_to using tf.io.gfile."""
-    if not args.copy_to:
-      return
-    for path in paths:
-      to_path = os.path.join(args.copy_to, args.name, os.path.basename(path))
-      tf.io.gfile.makedirs(os.path.dirname(to_path))
-      tf.io.gfile.copy(path, to_path, overwrite=True)
-      logger.info(f'Copied {path} to {to_path}.')
-
+  # Training loop.
   Loss_list = []
+  accuracy_val_list = []
   val_eval_every = 1
   progress_every = 1
-  writer = metric_writers.create_default_writer(logdir, asynchronous=False)
   t0 = time.time()
-  vit_fn_repl = jax.pmap(VisionTransformer.call)
 
   for step, batch, lr_repl in zip(
       tqdm.trange(1, total_steps + 1),
       ds_train.as_numpy_iterator(),
       lr_iter
   ):
+
+    #Training step : update weights
     opt_repl, loss_repl, update_rngs = update_fn_repl(
         opt_repl, lr_repl, batch, update_rngs)
 
@@ -518,62 +547,40 @@ if FINE_TUNE:
       t0 = time.time()
 
     if progress_every and step % progress_every == 0:
-      writer.write_scalars(step, dict(train_loss=float(loss_repl[0])))
       done = step / total_steps
       logger.info(f'Step: {step}/{total_steps} {100*done:.1f}%, '
                   f'ETA: {(time.time()-t0)/done*(1-done)/3600:.2f}h')
-      #copyfiles(glob.glob(f'{logdir}/*'))
 
-    # Run eval step
+    # Validation set evaluation
     if ((val_eval_every and step % val_eval_every == 0) or
             (step == total_steps)):
 
-      accuracy_test = get_accuracy_val(opt_repl.target)
-      #accuracy_test = np.mean([
-      #    c for batch in ds_val.as_numpy_iterator()
-      #    for c in (
-      #        np.argmax(vit_fn_repl(opt_repl.target, batch['image']),
-      #                  axis=2) == np.argmax(batch['label'], axis=2)).ravel()
-      #])
+      accuracy_val = get_accuracy_val(opt_repl.target)
 
       lr = float(lr_repl[0])
       logger.info(f'Step: {step} '
                   f'Learning rate: {lr:.7f}, '
-                  f'Test accuracy: {accuracy_test:0.5f}')
-      #writer.write_scalars(step, dict(accuracy_test=accuracy_test, lr=lr))
-      #copyfiles(glob.glob(f'{logdir}/*'))
+                  f'Validation accuracy: {accuracy_val:0.5f}')
 
     #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
+    accuracy_val_list.append(accuracy_val)
     #save weights every 1000 training steps
     if(step % 1000 == 0):
        checkpoint.save(flax_utils.unreplicate(opt_repl.target),
                        f"../models/model_diatom_checkpoint_step_{step}_with_data_aug.npz")
 
-  #Plot learning Curve
-  print(Loss_list)
-  fig = plt.figure()
-  plt.title('Learning Curve : Diatom Dataset')
-  plt.plot(Loss_list)
-  plt.yscale('log')
-  plt.xlabel('training_steps')
-  plt.ylabel('Loss : Cross Entropy')
-  fig.savefig('Learning_curve_plot_diatom_per_training_steps.png')
+
+
+  steps_per_epoch = dgscts_train.get_num_samples()//batch_size
 
   #Plot Loss per epochs
-  Loss_per_epochs = []
-  steps_per_epoch = dgscts_train.get_num_samples()//batch_size
-  for i in range(0, total_steps, steps_per_epoch):
-     Loss_per_epochs.append(Loss_list[i])
+  plot_learning_curve_per_epochs(Loss_list, steps_per_epoch, total_steps)
 
-  fig = plt.figure()
-  plt.title('Learning Curve : Diatom Dataset')
-  plt.plot(Loss_per_epochs)
-  plt.yscale('log')
-  plt.xlabel('Epochs')
-  plt.ylabel('Loss : Cross Entropy')
-  fig.savefig('Learning_curve_plot_diatom_per_epochs.png')
+  #Plot Val per epochs
+  plot_acc_per_epochs(accuracy_val_list, steps_per_epoch, total_steps)
 
+  #Evaluate test accuracy
   if 1:
     acc = get_accuracy(opt_repl.target)
     print("Accuracy of the pre-trained model after fine-tunning", acc)
