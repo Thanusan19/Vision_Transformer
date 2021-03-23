@@ -212,6 +212,8 @@ def make_split_from_descfile(ds_description_path: str, dataset_path: str,
         img_list.append(splits[0])
         lbl_list.append(int(splits[1]))
 
+  print("dataset:", len(img_list))
+
   ## TODO : Comment : The random_state won't change a thing since our label list was written in arbitrary order
   ## Except if we use the same description file.
 
@@ -227,6 +229,7 @@ def make_split_from_descfile(ds_description_path: str, dataset_path: str,
     X_test, X_val, y_test, y_val = train_test_split(
         X_test, y_test, test_size=val_prop_to_test, random_state=42, stratify=y_test)
 
+    print("train:", len(X_train), "test:", len(X_test), "val:", len(X_val))
     return X_train, y_train, X_test, y_test, X_val, y_val
 
   else:
@@ -234,6 +237,7 @@ def make_split_from_descfile(ds_description_path: str, dataset_path: str,
     X_train, X_test, y_train, y_test = train_test_split(
         img_list, lbl_list, test_size=test_prop, random_state=42, stratify=lbl_list)
     
+    print("train:", len(X_train), "test:", len(X_test))
     return X_train, y_train, X_test, y_test
 
 
@@ -320,8 +324,6 @@ else:
       ds_description_path='dataset/diatom_dataset/description.txt',
       dataset_path='dataset/diatom_dataset',
       train_prop=0.7, test_prop=0.2, val_prop=0.1, doVal=True)
-  
-  print(len(X_train), len(X_test), len(X_val))
 
   dgscts_train = MyDogsCats(dataset_path='dataset/diatom_dataset',
                             X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=True)
