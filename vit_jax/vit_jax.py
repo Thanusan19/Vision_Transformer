@@ -357,6 +357,7 @@ else:
 
   print("ds_train : ", ds_train)
   print("ds_test : ", ds_test)
+  print("ds_val : ", ds_val)
 
 # Fetch a batch of test images for illustration purposes.
 batch = next(iter(ds_test.as_numpy_iterator()))
@@ -488,8 +489,8 @@ if FINE_TUNE:
         opt_repl, lr_repl, batch, update_rngs)
 
     if step == 1:
-      logger.info(f'First step took {time.time() - t0:.1f} seconds.')
       t0 = time.time()
+      logger.info(f'First step took {time.time() - t0:.1f} seconds.')
 
     if progress_every and step % progress_every == 0:
       writer.write_scalars(step, dict(train_loss=float(loss_repl[0])))
