@@ -1,3 +1,8 @@
+import math
+import random
+import cv2
+import numpy as np
+import tensorflow as tf
 from pathlib import Path
 import re
 
@@ -7,17 +12,11 @@ from os.path import dirname
 sys.path.append(dirname('/home/GPU/tsathiak/local_storage/Vision_Transformer'))
 
 
-import tensorflow as tf
-import numpy as np
-import cv2
-import random
-import math
-
 ######################################################################################
 #Functions to create the exclusion list and the global description
 ######################################################################################
 
-def checkExistanceAndEmptiness(output_file_path:str, doOverwrite:bool):
+def checkExistanceAndEmptiness(output_file_path: str, doOverwrite: bool):
   okayToOverwrite = True
   output_path = Path(output_file_path)
   if output_path.exists():
@@ -30,7 +29,7 @@ def checkExistanceAndEmptiness(output_file_path:str, doOverwrite:bool):
       else:
         mode = 'w+'
         print('over-writing')
-      
+
     else:
       print('File is empty')
       mode = 'w+'
@@ -40,8 +39,9 @@ def checkExistanceAndEmptiness(output_file_path:str, doOverwrite:bool):
     mode = 'w'
   return mode, okayToOverwrite
 
-def createExclusionFile(dataset_dir_path:str, mogrify_output_file_path:str,
-                        output_file_path:str, doOverwrite:bool=False):
+
+def createExclusionFile(dataset_dir_path: str, mogrify_output_file_path: str,
+                        output_file_path: str, doOverwrite: bool = False):
   """
   dataset_dir_path le chemin d'accès au dossier du dataset
   output_file_path le chemin du fichier que l'on veut créer
@@ -52,7 +52,8 @@ def createExclusionFile(dataset_dir_path:str, mogrify_output_file_path:str,
 
   # Check if file exists or not and gives the write or write and read depending,
   # as well as the bolean to overwrite or not the file
-  mode, okayToOverwrite = checkExistanceAndEmptiness(output_file_path, doOverwrite)
+  mode, okayToOverwrite = checkExistanceAndEmptiness(
+      output_file_path, doOverwrite)
 
   dataset_path = Path(dataset_dir_path)
   output_path = Path(output_file_path)
@@ -67,22 +68,23 @@ def createExclusionFile(dataset_dir_path:str, mogrify_output_file_path:str,
 
       added_lines = []
       with mogrify_output.open('r') as infile:
-          for line in infile.readlines():
-              # time.sleep(1)
-              if line.endswith("\n"):
-                  line = line[:-1]
+        for line in infile.readlines():
+          # time.sleep(1)
+          if line.endswith("\n"):
+            line = line[:-1]
 
-                  first_match = regex_files.findall(line)[0]
-                  first_path = Path(first_match)
-                  string = str(first_path.relative_to(dataset_path))
-                  # string = first_match.replace(str(dataset_path)+"/", "")
-                  
-                  if string not in added_lines:
-                    outfile.write(string+"\n")
-                    added_lines.append(string)
+            first_match = regex_files.findall(line)[0]
+            first_path = Path(first_match)
+            string = str(first_path.relative_to(dataset_path))
+            # string = first_match.replace(str(dataset_path)+"/", "")
 
-def createGlobalDescription(dataset_dir_path:str, exclude_img_file_path:str,
-                           output_file_path:str, doOverwrite:bool=False):
+            if string not in added_lines:
+              outfile.write(string+"\n")
+              added_lines.append(string)
+
+
+def createGlobalDescription(dataset_dir_path: str, exclude_img_file_path: str,
+                            output_file_path: str, doOverwrite: bool = False):
   """
   Va generer le fichier de tout le dataset
   dataset_dir_path le chemin d'accès au dossier du dataset
@@ -101,18 +103,19 @@ def createGlobalDescription(dataset_dir_path:str, exclude_img_file_path:str,
   exclude_path = Path(exclude_img_file_path)
   exclude_img_list = []
   with exclude_path.open('r') as file:
-      for line in file.readlines():
-          if line.endswith("\n"):
-              line = line[:-1]
-              line = str(Path(line)) # To be able to compare it to other file path
-              #print("exclude file line :", line)
-          
-          exclude_img_list.append(line)
+    for line in file.readlines():
+      if line.endswith("\n"):
+        line = line[:-1]
+        line = str(Path(line))  # To be able to compare it to other file path
+        #print("exclude file line :", line)
+
+      exclude_img_list.append(line)
   print("exclude_img_list", exclude_img_list)
 
   # Compter celui qui a le plus d'exclus, pour en avoir le même nombre de
   # chaque coté
-  count_cat = 0; count_dog = 0
+  count_cat = 0
+  count_dog = 0
   for exclude_file in exclude_img_list:
     #print("Cat or Dog ?", exclude_file.split("/")[-2])
     if exclude_file.split("/")[-2] == 'Cat':
@@ -125,7 +128,8 @@ def createGlobalDescription(dataset_dir_path:str, exclude_img_file_path:str,
 
   # Check if file exists or not and gives the write or write and read depending,
   # as well as the bolean to overwrite or not the file
-  mode, okayToOverwrite = checkExistanceAndEmptiness(output_file_path, doOverwrite)
+  mode, okayToOverwrite = checkExistanceAndEmptiness(
+      output_file_path, doOverwrite)
 
   output_path = Path(output_file_path)
   # Ecriture du fichier
@@ -154,10 +158,9 @@ def createGlobalDescription(dataset_dir_path:str, exclude_img_file_path:str,
           added_count = 0
           for class_img in class_dir.iterdir():
             #if class_img.match('[0-9]*.jpg'):
-              
-            local_image_path = class_img.relative_to(ds_dir_path)
-              # Check for exclusion
 
+            local_image_path = class_img.relative_to(ds_dir_path)
+            # Check for exclusion
 
             #print("class_img:", class_img)
             #print("exclude_img_list:", exclude_img_list)
@@ -173,18 +176,18 @@ def createGlobalDescription(dataset_dir_path:str, exclude_img_file_path:str,
                 print("    > that was a left to exclude", local_image_path)
                 #time.sleep(1)
               else:
-                file.write(str(local_image_path) + "\t" + str(class_num) + "\n")
+                file.write(str(local_image_path) +
+                           "\t" + str(class_num) + "\n")
                 added_count += 1
             else:
               #print("    class_img", class_img)
               print("    > excluded from the exclusion list", local_image_path)
               #time.sleep(1)
-          
+
           if str(class_dir).endswith('Cat'):
             print("Added", added_count, "cats to the description file")
           else:
             print("Added", added_count, "dogs to the description file")
-
 
 
 #####################################################################
@@ -197,8 +200,8 @@ def createGlobalDescription(dataset_dir_path:str, exclude_img_file_path:str,
 #exclude_img_file_path = MAIN_PATH + "dataset/CatsAndDogs/exclude.txt"
 #output_description_file_path = MAIN_PATH + "dataset/CatsAndDogs/description.txt"
 
-MAIN_PATH = "" #"/home/GPU/tsathiak/local_storage/Vision_Transformer"
-dataset_dir_path = MAIN_PATH +  "dataset/diatom_dataset"
+MAIN_PATH = ""  # "/home/GPU/tsathiak/local_storage/Vision_Transformer"
+dataset_dir_path = MAIN_PATH + "dataset/diatom_dataset"
 mogrify_output_file_path = MAIN_PATH + "dataset/diatom_dataset/mogrify_output"
 exclude_img_file_path = MAIN_PATH + "dataset/diatom_dataset/exclude.txt"
 output_description_file_path = MAIN_PATH + "dataset/diatom_dataset/description.txt"
@@ -215,235 +218,168 @@ createGlobalDescription(dataset_dir_path=dataset_dir_path,
                         doOverwrite=True)
 
 
-
 ######################################################################
 #Create a training and a test set
 ######################################################################
 class MyDogsCats:
-    def __init__(self, dataset_path: str, X, y, num_class: int, set_type: str,
-                 doDataAugmentation: bool = False) -> None:
-        """
-        ds_description_path : fichier avec les paths de chaque fichiers du dataset et sa classe
-        Exemple de fichier (tabulation entre le path et la classe):
-            /truc/bidule/chat/01.jpg    0
-            /truc/bidule/chien/01.jpg   1
-            Etc ...
-        """
+  def __init__(self, dataset_path: str, X, y, num_class: int, set_type: str,
+               doDataAugmentation: bool = False) -> None:
+    """
+    ds_description_path : fichier avec les paths de chaque fichiers du dataset et sa classe
+    Exemple de fichier (tabulation entre le path et la classe):
+        /truc/bidule/chat/01.jpg    0
+        /truc/bidule/chien/01.jpg   1
+        Etc ...
+    """
 
-        #print(img_list_par_classes)
+    #print(img_list_par_classes)
 
-        # Obtenir la liste de train OU de test
-        self._img_list = X
-        self._lbl_list = y
+    # Obtenir la liste de train OU de test
+    self._img_list = X
+    self._lbl_list = y
 
-        # self._num_class = len(img_list_par_classes)
+    #print("_img_list", self._img_list[0:100])
+    #print("_lbl_list", self._lbl_list[0:100])
+    assert(len(self._lbl_list) == len(self._img_list))
 
-        # for num_class in img_list_par_classes:
-        #     # Definir les proportions
-        #     num_files_class_k = len(img_list_par_classes[num_class])
-        #     # num_files = len(img_list_par_classes[num_class])
-        #     if set_type == "train":
-        #         num_per_class_to_keep = math.ceil(num_files_class_k * train_prop)
-        #         # num_per_class_to_keep = math.ceil((num_files // self._num_class) * train_prop)
+    self.num_samples = len(self._lbl_list)
 
-        #         class_files = img_list_par_classes[num_class][0:num_per_class_to_keep]
+    if set_type == "train" or set_type == "test" or set_type == "val":
+      self._set_type = set_type
+    else:
+      self._set_type = "whole"
 
-        #     elif set_type == "test":
-        #         num_per_class_to_keep = math.floor(
-        #             num_files_class_k * (1 - train_prop))
-        #         # num_per_class_to_keep = math.floor((num_files // self._num_class) * (1 - train_prop))
+    self._start_im_size = 256
+    self._end_im_size = 384
+    self._start_im_dim = np.array((self._start_im_size, self._start_im_size))
+    self._end_im_dim = np.array((self._end_im_size, self._end_im_size))
 
-        #         class_files = img_list_par_classes[num_class][-num_per_class_to_keep:]
+    self._num_channels = 3
+    self._one_hot_depth = num_class
 
-        #     else:
-        #         class_files = img_list_par_classes[num_class]
+    self._do_data_augmentation = doDataAugmentation
 
-        #     # Ajouter les images qui correspondent à la liste des images
-        #     self._img_list.extend(class_files)
-        #     # De même pour les labels
-        #     #print("num_class:", num_class)
-        #     #print("type num_class:", type(num_class))
-        #     #print("len num_class:", len(class_files))
-        #     self._lbl_list.extend([num_class for i in range(len(class_files))])
+    self._ds_path = Path(dataset_path)
 
-        #print("_img_list", self._img_list[0:100])
-        #print("_lbl_list", self._lbl_list[0:100])
-        assert(len(self._lbl_list) == len(self._img_list))
+  def getDataset(self):
+      generator = self._generator
+      print("nbr samples ", self.num_samples)
+      return tf.data.Dataset.from_generator(generator,
+                                            args=[],
+                                            output_types={'image': tf.float32, 'label': tf.int32},
+                                            output_shapes={'image': tf.TensorShape((self._end_im_size, self._end_im_size, self._num_channels)),
+                                                           'label': tf.TensorShape((self._one_hot_depth))})
 
-        self.num_samples = len(self._lbl_list)
+  #####
+  # Generator
+  #####
 
-        if set_type == "train" or set_type == "test" or set_type == "val":
-            self._set_type = set_type
-        else:
-            self._set_type = "whole"
+  def _generator(self):
 
-        
-        self._start_im_size = 256
-        self._end_im_size = 384
-        self._start_im_dim = np.array((self._start_im_size, self._start_im_size))
-        self._end_im_dim = np.array((self._end_im_size, self._end_im_size))
+    # Setup for Data Augmentation
+    if self._do_data_augmentation and self._set_type == 'train':
+      start_im_center = tuple(self._start_im_dim//2)
+      end_im_center = tuple(self._end_im_dim//2)
 
-        self._num_channels = 3
-        self._one_hot_depth = num_class
+      # Parameters
+      # blend_size = (120, 120)
+      translate_range = (-80, 80)
+      # total_size = blend_size[0] + blend_size[1]
 
-        self._do_data_augmentation = doDataAugmentation
-        # self._do_inception_crop = doInceptionCrop
+      # left = blend_size[0]
+      fond = np.zeros(tuple(np.append(tuple(self._start_im_dim), 3)), np.uint8)
 
-        self._ds_path = Path(dataset_path)
+      # blank mask in uint8 representation (255)
+      blank = 255 * \
+          np.ones(tuple(np.append(tuple(self._start_im_dim), 3)), np.uint8)
 
-    ####
-    # OLD : Helpers for the Data Augmentation
-    ####
-    # def get_sigmoid_gradient_2d(self, start, stop, width, height, is_horizontal):
-    #     x = np.linspace(start, stop, width)
-    #     # print(x)
-    #     s = 1/(1 + np.exp(-x))
+    img_list = self._img_list
+    lbl_list = self._lbl_list
 
-    #     if is_horizontal:
-    #         res = np.tile(s, (height, 1))
-    #         #print(res)
-    #         return res
-    #     else:
-    #         res = np.tile(s, (width, 1)).T
-    #         #print(res)
-    #         return res
+    # Shuffle
+    c = list(zip(img_list, lbl_list))
+    random.shuffle(c)
+    img_list, lbl_list = zip(*c)
 
-    # def get_sigmoid_gradient_3d(self, width, height, start_list, stop_list, is_horizontal_list):
-    #     print(start_list)
-    #     result = np.zeros((height, width, len(start_list)), dtype=np.float32)
+    # #Stratified Split into Train and Test dataset
+    # X_train, X_test, y_train, y_test = train_test_split(img_list, lbl_list, test_size=0.2, random_state=42, stratify=lbl_list)
+    # #Stratified Split into Train and Validation dataset
+    # X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42, stratify=y_train)
 
-    #     for i, (start, stop, is_horizontal) in enumerate(zip(start_list, stop_list, is_horizontal_list)):
-    #         result[:, :, i] = self.get_sigmoid_gradient_2d(start, stop, width, height, is_horizontal)
+    for i in range(self.num_samples):
+      # Read the image
+      im = cv2.imread(str(self._ds_path/img_list[i]), -1)
 
-    #     return result
+      # If we couldn't read the image or other errors, we take the first image in the list
+      if im is None:
+        i = 0
+        im = cv2.imread(str(self._ds_path/img_list[0]), -1)
 
-    def getDataset(self):
-        generator = self._generator
-        print("nbr samples ", self.num_samples)
-        return tf.data.Dataset.from_generator(generator,
-                                              args=[],
-                                              output_types={'image': tf.float32, 'label': tf.int32},
-                                              output_shapes={'image': tf.TensorShape((self._end_im_size, self._end_im_size, self._num_channels)),
-                                                             'label': tf.TensorShape((self._one_hot_depth))})
+      # If in black and white, replicate in 3 channels
+      if len(im.shape) < 3:
+        im = np.repeat(np.expand_dims(im, -1), 3, -1)
 
+      # Convert from BGR to RGB
+      im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
 
-    #####
-    # Generator
-    #####
-    def _generator(self):
+      # Data Augmentation :
+      if self._do_data_augmentation and self._set_type == 'train':
+        # start by ensuring images are the size of the start dim
+        im = cv2.resize(im, tuple(self._start_im_dim))
 
-        # Setup for Data Augmentation
-        if self._do_data_augmentation and self._set_type == 'train':
-            start_im_center = tuple(self._start_im_dim//2)
-            end_im_center = tuple(self._end_im_dim//2)
+        # Find the color to blend (update : take the median color of the image)
+        # fond_couleur = np.median(im[1:30, left//2:left//2+10, :], axis=[0,1])
+        fond_couleur = np.median(im[:, :, :], axis=[0, 1])
+        # fond_couleur = (0, 255, 0)
 
-            # Parameters
-            # blend_size = (120, 120)
-            translate_range = (-80, 80)
-            # total_size = blend_size[0] + blend_size[1]
+        fond[:, :, :] = fond_couleur
 
-            # left = blend_size[0]
-            fond = np.zeros(tuple(np.append(tuple(self._start_im_dim), 3)), np.uint8)
+        #####
+        # OLD blending
+        #####
+        # Make the blend between the image and the background color
+        # im = np.round((im/255.0 * blend_all + fond/255.0 * (1 - blend_all))*255.0).astype(np.uint8)
 
-            # blank mask in uint8 representation (255)
-            blank = 255 * np.ones(tuple(np.append(tuple(self._start_im_dim), 3)), np.uint8)
+        # Seamless cloning between the image and the new background
+        # From https://learnopencv.com/seamless-cloning-using-opencv-python-cpp/
+        # Small tweak could be between cv2.MIXED_CLONE or cv2.NORMAL_CLONE, but I can't see the difference for this dataset
+        im = cv2.seamlessClone(src=im, dst=fond, mask=blank,
+                               p=start_im_center, flags=cv2.MIXED_CLONE)
 
-            # blend_left = self.get_sigmoid_gradient_3d(width=blend_size[0], height=self._start_im_size, start_list=np.ones(3)*-10.0, stop_list=np.ones(3)*10.0, is_horizontal_list=[True, True, True])
+        # Translate to the center of the bigger image
+        tx_ty = np.floor(((self._start_im_dim - self._end_im_dim)/2))
+        trans_mat = np.column_stack([[1, 0], [0, 1], tx_ty])
+        im = cv2.warpAffine(im, trans_mat, tuple(self._end_im_dim),
+                            borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
 
-            # blend_right = self.get_sigmoid_gradient_3d(blend_size[1], self._start_im_size,
-            #                                     start_list=np.ones(3)*10.0,
-            #                                     stop_list=np.ones(3)*-10.0,
-            #                                     is_horizontal_list=[True, True, True])
+        # Choose a random angle
+        angle = np.random.rand()*360
 
-            # blend_all = np.concatenate([blend_left, blank[:,:self._start_im_size-total_size,:], blend_right], axis=1)
+        # Rotate the image
+        rot_mat = cv2.getRotationMatrix2D(end_im_center, angle, 1.0)
+        im = cv2.warpAffine(im, rot_mat, tuple(self._end_im_dim),
+                            borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
 
-        img_list = self._img_list
-        lbl_list = self._lbl_list
+        # Choose a random translation
+        a, b = translate_range
+        rand_tx_ty = (b - a) * np.random.random_sample(2) + a
 
-        # Shuffle
-        c = list(zip(img_list, lbl_list))
-        random.shuffle(c)
-        img_list, lbl_list = zip(*c)
+        # Translate the image
+        rand_trans_mat = np.column_stack([[1, 0], [0, 1], rand_tx_ty])
+        im = cv2.warpAffine(im, rand_trans_mat, tuple(self._end_im_dim),
+                            borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
 
-        # #Stratified Split into Train and Test dataset
-        # X_train, X_test, y_train, y_test = train_test_split(img_list, lbl_list, test_size=0.2, random_state=42, stratify=lbl_list)
-        # #Stratified Split into Train and Validation dataset
-        # X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42, stratify=y_train)
+        img = im
+      else:
+        img = cv2.resize(im, tuple(self._end_im_dim))
 
-        for i in range(self.num_samples):
-            # Read the image
-            im = cv2.imread(str(self._ds_path/img_list[i]), -1)
+      # Normalization
+      img = (img - 127.5) / 127.5
 
-            # If we couldn't read the image or other errors, we take the first image in the list
-            if im is None:
-                i = 0
-                im = cv2.imread(str(self._ds_path/img_list[0]), -1)
+      # Label
+      lbl = tf.one_hot(lbl_list[i], depth=self._one_hot_depth, dtype=tf.int32)
 
-            # If in black and white, replicate in 3 channels
-            if len(im.shape) < 3:
-                im = np.repeat(np.expand_dims(im, -1), 3, -1)
+      yield {'image': img, 'label': lbl}
 
-            # Convert from BGR to RGB
-            im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
-
-            # Data Augmentation :
-            if self._do_data_augmentation and self._set_type == 'train':
-                # start by ensuring images are the size of the start dim
-                im = cv2.resize(im, tuple(self._start_im_dim))
-
-                # Find the color to blend (update : take the median color of the image)
-                # fond_couleur = np.median(im[1:30, left//2:left//2+10, :], axis=[0,1])
-                fond_couleur = np.median(im[:, :, :], axis=[0,1])
-                # fond_couleur = (0, 255, 0)
-
-                fond[:, :, :] = fond_couleur
-
-                #####
-                # OLD blending
-                #####
-                # Make the blend between the image and the background color
-                # im = np.round((im/255.0 * blend_all + fond/255.0 * (1 - blend_all))*255.0).astype(np.uint8)
-
-                # Seamless cloning between the image and the new background
-                # From https://learnopencv.com/seamless-cloning-using-opencv-python-cpp/
-                # Small tweak could be between cv2.MIXED_CLONE or cv2.NORMAL_CLONE, but I can't see the difference for this dataset
-                im = cv2.seamlessClone(src=im, dst=fond, mask=blank, p=start_im_center, flags=cv2.MIXED_CLONE)
-
-                # Translate to the center of the bigger image
-                tx_ty = np.floor(((self._start_im_dim - self._end_im_dim)/2))
-                trans_mat = np.column_stack([[1, 0], [0, 1], tx_ty])
-                im = cv2.warpAffine(im, trans_mat, tuple(self._end_im_dim),
-                                    borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
-
-                # Choose a random angle
-                angle = np.random.rand()*360
-
-                # Rotate the image
-                rot_mat = cv2.getRotationMatrix2D(end_im_center, angle, 1.0)
-                im = cv2.warpAffine(im, rot_mat, tuple(self._end_im_dim),
-                                    borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
-                
-                # Choose a random translation
-                a, b = translate_range
-                rand_tx_ty = (b - a) * np.random.random_sample(2) + a
-
-                # Translate the image
-                rand_trans_mat = np.column_stack([[1, 0], [0, 1], rand_tx_ty])
-                im = cv2.warpAffine(im, rand_trans_mat, tuple(self._end_im_dim),
-                                    borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
-
-                img = im
-            else:
-                img = cv2.resize(im, tuple(self._end_im_dim))
-
-            # Normalization
-            img = (img - 127.5) / 127.5
-
-            # Label
-            lbl = tf.one_hot(lbl_list[i], depth=self._one_hot_depth, dtype=tf.int32)
-
-            yield {'image': img, 'label': lbl}
-
-
-    def get_num_samples(self):
-        return self.num_samples
+  def get_num_samples(self):
+      return self.num_samples

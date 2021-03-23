@@ -1,3 +1,10 @@
+from ViT_python_generator import MyDogsCats
+from clu import metric_writers
+import time
+import os
+import glob
+import functools
+import tensorflow as tf
 import sys
 import flax
 import jax
@@ -19,16 +26,8 @@ import logging_ViT
 import flax.jax_utils as flax_utils
 
 from os.path import dirname
-sys.path.append(dirname('/home/GPU/tsathiak/local_storage/Vision_Transformer/'))
-from ViT_python_generator import MyDogsCats 
-import tensorflow as tf
-
-import functools
-import glob
-import os
-import time
-from clu import metric_writers
-
+sys.path.append(
+    dirname('/home/GPU/tsathiak/local_storage/Vision_Transformer/'))
 
 
 # Shows the number of available devices.
@@ -47,11 +46,14 @@ CHECKPOINTS_TEST = False
 # Helper functions for images.
 
 labelnames = dict(
-  # https://www.cs.toronto.edu/~kriz/cifar.html
-  cifar10=('airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'),
-  # https://www.cs.toronto.edu/~kriz/cifar.html
-  cifar100=('apple', 'aquarium_fish', 'baby', 'bear', 'beaver', 'bed', 'bee', 'beetle', 'bicycle', 'bottle', 'bowl', 'boy', 'bridge', 'bus', 'butterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle', 'chair', 'chimpanzee', 'clock', 'cloud', 'cockroach', 'couch', 'crab', 'crocodile', 'cup', 'dinosaur', 'dolphin', 'elephant', 'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house', 'kangaroo', 'computer_keyboard', 'lamp', 'lawn_mower', 'leopard', 'lion', 'lizard', 'lobster', 'man', 'maple_tree', 'motorcycle', 'mountain', 'mouse', 'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear', 'pickup_truck', 'pine_tree', 'plain', 'plate', 'poppy', 'porcupine', 'possum', 'rabbit', 'raccoon', 'ray', 'road', 'rocket', 'rose', 'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake', 'spider', 'squirrel', 'streetcar', 'sunflower', 'sweet_pepper', 'table', 'tank', 'telephone', 'television', 'tiger', 'tractor', 'train', 'trout', 'tulip', 'turtle', 'wardrobe', 'whale', 'willow_tree', 'wolf', 'woman', 'worm')
+    # https://www.cs.toronto.edu/~kriz/cifar.html
+    cifar10=('airplane', 'automobile', 'bird', 'cat', 'deer',
+             'dog', 'frog', 'horse', 'ship', 'truck'),
+    # https://www.cs.toronto.edu/~kriz/cifar.html
+    cifar100=('apple', 'aquarium_fish', 'baby', 'bear', 'beaver', 'bed', 'bee', 'beetle', 'bicycle', 'bottle', 'bowl', 'boy', 'bridge', 'bus', 'butterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle', 'chair', 'chimpanzee', 'clock', 'cloud', 'cockroach', 'couch', 'crab', 'crocodile', 'cup', 'dinosaur', 'dolphin', 'elephant', 'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house', 'kangaroo', 'computer_keyboard', 'lamp', 'lawn_mower', 'leopard', 'lion', 'lizard', 'lobster', 'man', 'maple_tree', 'motorcycle', 'mountain',
+              'mouse', 'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear', 'pickup_truck', 'pine_tree', 'plain', 'plate', 'poppy', 'porcupine', 'possum', 'rabbit', 'raccoon', 'ray', 'road', 'rocket', 'rose', 'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake', 'spider', 'squirrel', 'streetcar', 'sunflower', 'sweet_pepper', 'table', 'tank', 'telephone', 'television', 'tiger', 'tractor', 'train', 'trout', 'tulip', 'turtle', 'wardrobe', 'whale', 'willow_tree', 'wolf', 'woman', 'worm')
 )
+
 
 def make_label_getter(dataset):
   """Returns a function converting label indices to names."""
@@ -60,6 +62,7 @@ def make_label_getter(dataset):
       return labelnames[dataset][label]
     return f'label={label}'
   return getter
+
 
 def show_img(img, ax=None, title=None):
   """Shows a single image."""
@@ -71,6 +74,7 @@ def show_img(img, ax=None, title=None):
   if title:
     ax.set_title(title)
 
+
 def show_img_grid(imgs, titles):
   """Shows a grid of images."""
   n = int(np.ceil(len(imgs)**.5))
@@ -79,14 +83,16 @@ def show_img_grid(imgs, titles):
     img = (img + 1) / 2  # Denormalize
     show_img(img, axs[i // n][i % n], title)
 
+
 def print_banner(message):
   print("\n###################################")
   print(message)
   print("###################################\n")
 
+
 def _shard(data):
   data['image'] = tf.reshape(data['image'], [num_devices, -1, 384, 384, 3])
-  data['label'] = tf.reshape(data['label'], [num_devices, -1, 166]) #2
+  data['label'] = tf.reshape(data['label'], [num_devices, -1, 166])  # 2
   return data
 
 
@@ -96,7 +102,7 @@ def get_accuracy(params_repl):
   #steps = input_pipeline.get_dataset_info(dataset, 'test')['num_examples'] // batch_size
   steps = 20000 // batch_size
   for _, batch in zip(tqdm.trange(steps), ds_test.as_numpy_iterator()):
-  #for _, batch in zip(steps, ds_test.as_numpy_iterator()):  
+    #for _, batch in zip(steps, ds_test.as_numpy_iterator()):
     predicted = vit_apply_repl(params_repl, batch['image'])
     is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
     good += is_same.sum()
@@ -145,15 +151,15 @@ def plot_confusion_matrix(cm, title, img_save_filename, cmap=None, normalize=Tru
     cm = cm.numpy()
 
     if cmap is None:
-      cmap = plt.get_cmap('jet') #Blues
+      cmap = plt.get_cmap('jet')  # Blues
 
     if normalize:
       nbr_sample_per_classe = cm.sum(axis=1)
-      nbr_sample_per_classe[nbr_sample_per_classe==0] = 1
+      nbr_sample_per_classe[nbr_sample_per_classe == 0] = 1
       #Divide each row per nbr_sample_per_classe
-      cm = cm / nbr_sample_per_classe[:,None]
+      cm = cm / nbr_sample_per_classe[:, None]
 
-    if log_scale :
+    if log_scale:
       cm = np.log(cm)
 
     plt.figure(figsize=(8, 6))
@@ -169,7 +175,6 @@ def plot_confusion_matrix(cm, title, img_save_filename, cmap=None, normalize=Tru
     plt.close()
 
 
-
 def get_predict_labels_on_test_data(params_repl):
   """Returns Predicted Class list and Label Class list """
 
@@ -177,38 +182,23 @@ def get_predict_labels_on_test_data(params_repl):
   predicted = []
   labels = []
   for _, batch in zip(tqdm.trange(steps), ds_test.as_numpy_iterator()):
-    predicted.append(vit_apply_repl(params_repl, batch['image']).argmax(axis=-1))
+    predicted.append(vit_apply_repl(
+        params_repl, batch['image']).argmax(axis=-1))
     labels.append(batch['label'].argmax(axis=-1))
 
   return predicted, labels
 
 # Function to read the description file, and split the file path and classes
 # into three sets
+
+
 def make_split_from_descfile(ds_description_path: str, dataset_path: str,
-                            train_prop: float, test_prop: float, doVal: bool=False, val_prop: float=0.0):
+                             train_prop: float, test_prop: float, doVal: bool = False, val_prop: float = 0.0):
 
   # Make sure the proportions are valid
   assert(train_prop + val_prop + test_prop == 1.0)
 
   # Lire le fichier de description et regrouper par classes
-  ## TODO Peut-etre pas besoin d'un dico mais juste d'une liste d'images ET une liste de labels.
-  # img_list_par_classes = {}
-  # path = Path(ds_description_path)
-  # with path.open('r') as file:
-  #   for line in file.readlines():
-  #     if line.endswith("\n"):
-  #       line = line[:-1]
-  #     splits = line.split("\t")
-
-  #     if line != "":
-  #       img_text = splits[0]
-  #       lbl_text = int(splits[1])
-
-  #       if lbl_text in img_list_par_classes.keys():
-  #         img_list_par_classes[lbl_text].append(img_text)
-  #       else:
-  #         img_list_par_classes[lbl_text] = [img_text]
-  
   img_list = []
   lbl_list = []
   path = Path(ds_description_path)
@@ -221,24 +211,26 @@ def make_split_from_descfile(ds_description_path: str, dataset_path: str,
       if line != "":
         img_list.append(splits[0])
         lbl_list.append(int(splits[1]))
-  
 
   ## TODO : Comment : The random_state won't change a thing since our label list was written in arbitrary order
   ## Except if we use the same description file.
 
   # Stratified Split into Train and Test dataset
-  X_train, X_test, y_train, y_test = train_test_split(img_list, lbl_list, test_size=val_prop+test_prop, random_state=42, stratify=lbl_list)
-  
+  X_train, X_test, y_train, y_test = train_test_split(
+      img_list, lbl_list, test_size=val_prop+test_prop, random_state=42, stratify=lbl_list)
+
   if doVal:
     # Calculate the val proportion to the test proportion
     val_prop_to_test = val_prop/test_prop
 
     # Stratified Split into Train and Validation dataset
-    X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=val_prop_to_test, random_state=42, stratify=y_test)
+    X_test, X_val, y_test, y_val = train_test_split(
+        X_test, y_test, test_size=val_prop_to_test, random_state=42, stratify=y_test)
 
     return X_train, y_train, X_test, y_test, X_val, y_val
   else:
     return X_train, y_train, X_test, y_test
+
 
 ##############
 #LOAD DATASET#
@@ -249,17 +241,19 @@ DATASET = 1 --> DOG_CAT dataset
 DATASET = 2 --> DIATOM dataset
 """
 DATASET = 2
-batch_size = 512  #127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
+# 127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
+batch_size = 512
 
 
-if(DATASET==0):
+if(DATASET == 0):
    print_banner("LOAD DATASET : CIFAR-10")
 
    dataset = 'cifar10'
 
    # Note the datasets are configured in input_pipeline.DATASET_PRESETS
    # Have a look in the editor at the right.
-   num_classes = input_pipeline.get_dataset_info(dataset, 'train')['num_classes']
+   num_classes = input_pipeline.get_dataset_info(dataset, 'train')[
+       'num_classes']
    # tf.data.Datset for training, infinite repeats.
    ds_train = input_pipeline.get_data(
        dataset=dataset, mode='train', repeats=None, batch_size=batch_size,
@@ -269,7 +263,7 @@ if(DATASET==0):
        dataset=dataset, mode='test', repeats=1, batch_size=batch_size,
    )
 
-elif(DATASET==1):
+elif(DATASET == 1):
   print_banner("LOAD DATASET : CATS and DOGS")
 
   num_devices = len(jax.local_devices())
@@ -284,10 +278,10 @@ elif(DATASET==1):
       train_prop=0.8, test_prop=0.2, doVal=False)
 
   dgscts_train = MyDogsCats(dataset_path='dataset/CatsAndDogs',
-      X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=False)
+                            X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=False)
 
   dgscts_test = MyDogsCats(dataset_path='dataset/CatsAndDogs',
-      X=X_test, y=y_test, num_class=num_classes, set_type='test', doDataAugmentation=False)
+                           X=X_test, y=y_test, num_class=num_classes, set_type='test', doDataAugmentation=False)
 
   # dgscts_train = MyDogsCats(ds_description_path='dataset/CatsAndDogs/description.txt',
   #                 dataset_path='dataset/CatsAndDogs',
@@ -323,13 +317,13 @@ else:
       train_prop=0.7, test_prop=0.2, val_prop=0.1, doVal=True)
 
   dgscts_train = MyDogsCats(dataset_path='dataset/diatom_dataset',
-      X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=True)
+                            X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=True)
 
   dgscts_test = MyDogsCats(dataset_path='dataset/diatom_dataset',
-      X=X_test, y=y_test, num_class=num_classes, set_type='test', doDataAugmentation=False)
-  
+                           X=X_test, y=y_test, num_class=num_classes, set_type='test', doDataAugmentation=False)
+
   dgscts_val = MyDogsCats(dataset_path='dataset/diatom_dataset',
-      X=X_val, y=y_val, num_class=num_classes, set_type='val', doDataAugmentation=False)
+                          X=X_val, y=y_val, num_class=num_classes, set_type='val', doDataAugmentation=False)
 
   # dgscts_train = MyDogsCats(ds_description_path='dataset/diatom_dataset/description.txt',
   #                 dataset_path='dataset/diatom_dataset',
@@ -347,23 +341,19 @@ else:
   ds_train = dgscts_train.getDataset().batch(batch_size, drop_remainder=True)
   ds_test = dgscts_test.getDataset().batch(batch_size, drop_remainder=True)
   ds_val = dgscts_val.getDataset().batch(batch_size, drop_remainder=True)
-  
+
   ds_train = ds_train.repeat()
   ds_test = ds_test.repeat()
   ds_val = ds_val.repeat()
-
 
   if num_devices is not None:
     ds_train = ds_train.map(_shard, tf.data.experimental.AUTOTUNE)
     ds_test = ds_test.map(_shard, tf.data.experimental.AUTOTUNE)
     ds_val = ds_val.map(_shard, tf.data.experimental.AUTOTUNE)
 
-
   ds_test = ds_test.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
   ds_train = ds_train.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
   ds_val = ds_val.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-
-
 
   print("ds_train : ", ds_train)
   print("ds_test : ", ds_test)
@@ -378,7 +368,6 @@ except tf.errors.OutOfRangeError:
    print("End of dataset")  # ==> "End of dataset
 
 
-
 ########################
 #LOAD PRE-TRAINED MODEL#
 ########################
@@ -391,7 +380,6 @@ _, params = VisionTransformer.init_by_shape(
     jax.random.PRNGKey(0),
     # Discard the "num_local_devices" dimension of the batch for initialization.
     [(batch['image'].shape[1:], batch['image'].dtype.name)])
-
 
 
 # Load and convert pretrained checkpoint.
@@ -436,17 +424,17 @@ if 0:
 #FINE-TUNE#
 ###########
 
-if FINE_TUNE :
+if FINE_TUNE:
 
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  epochs = 1 #600
-  total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs;  #300
-  print("Total nbr backward steps : ",total_steps)
-  print("Total nbr epochs : ",epochs)
-  print("Nbr of train samples :",dgscts_train.get_num_samples())
-  print("Batch Size : ",batch_size)
+  epochs = 1  # 600
+  total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs  # 300
+  print("Total nbr backward steps : ", total_steps)
+  print("Total nbr epochs : ", epochs)
+  print("Nbr of train samples :", dgscts_train.get_num_samples())
+  print("Batch Size : ", batch_size)
   warmup_steps = 5
   decay_type = 'cosine'
   grad_norm_clip = 1
@@ -454,9 +442,8 @@ if FINE_TUNE :
   # a TPU runtime that has 8 devices. 64 should work on a GPU. You can of course
   # also adjust the batch_size above, but that would require you to adjust the
   # learning rate accordingly.
-  accum_steps = 64  #64--> GPU3  #8--> TPU
+  accum_steps = 64  # 64--> GPU3  #8--> TPU
   base_lr = 0.03
-
 
   # Check out train.make_update_fn in the editor on the right side for details.
   update_fn_repl = train.make_update_fn(VisionTransformer.call, accum_steps)
@@ -465,17 +452,18 @@ if FINE_TUNE :
   opt = momentum_clip.Optimizer(grad_norm_clip=grad_norm_clip).create(params)
   opt_repl = flax.jax_utils.replicate(opt)
 
-
-  lr_fn = hyper.create_learning_rate_schedule(total_steps, base_lr, decay_type, warmup_steps)
+  lr_fn = hyper.create_learning_rate_schedule(
+      total_steps, base_lr, decay_type, warmup_steps)
   # Prefetch entire learning rate schedule onto devices. Otherwise we would have
   # a slow transfer from host to devices in every step.
   lr_iter = hyper.lr_prefetch_iter(lr_fn, 0, total_steps)
   # Initialize PRNGs for dropout.
-  update_rngs = jax.random.split(jax.random.PRNGKey(0), jax.local_device_count())
-
+  update_rngs = jax.random.split(
+      jax.random.PRNGKey(0), jax.local_device_count())
 
   # The world's simplest training loop.
   # Completes in ~20 min on the TPU runtime.
+
   def copyfiles(paths):
     """Small helper to copy files to args.copy_to using tf.io.gfile."""
     if not args.copy_to:
@@ -490,7 +478,6 @@ if FINE_TUNE :
   val_eval_every = 1
   progress_every = 1
   writer = metric_writers.create_default_writer(logdir, asynchronous=False)
-
 
   for step, batch, lr_repl in zip(
       tqdm.trange(1, total_steps + 1),
@@ -513,7 +500,7 @@ if FINE_TUNE :
 
     # Run eval step
     if ((val_eval_every and step % val_eval_every == 0) or
-        (step == total_steps)):
+            (step == total_steps)):
 
       accuracy_test = np.mean([
           c for batch in ds_val.as_numpy_iterator()
@@ -529,13 +516,12 @@ if FINE_TUNE :
       writer.write_scalars(step, dict(accuracy_test=accuracy_test, lr=lr))
       copyfiles(glob.glob(f'{logdir}/*'))
 
-
     #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
     #save weights every 1000 training steps
-    if(step%1000==0):
-       checkpoint.save(flax_utils.unreplicate(opt_repl.target), f"../models/model_diatom_checkpoint_step_{step}_with_data_aug.npz")
-
+    if(step % 1000 == 0):
+       checkpoint.save(flax_utils.unreplicate(opt_repl.target),
+                       f"../models/model_diatom_checkpoint_step_{step}_with_data_aug.npz")
 
   #Plot learning Curve
   print(Loss_list)
@@ -549,8 +535,8 @@ if FINE_TUNE :
 
   #Plot Loss per epochs
   Loss_per_epochs = []
-  steps_per_epoch = dgscts_train.get_num_samples()//batch_size 
-  for i in range(0,total_steps,steps_per_epoch):
+  steps_per_epoch = dgscts_train.get_num_samples()//batch_size
+  for i in range(0, total_steps, steps_per_epoch):
      Loss_per_epochs.append(Loss_list[i])
 
   fig = plt.figure()
@@ -561,8 +547,7 @@ if FINE_TUNE :
   plt.ylabel('Loss : Cross Entropy')
   fig.savefig('Learning_curve_plot_diatom_per_epochs.png')
 
-
-  if 1 :
+  if 1:
     acc = get_accuracy(opt_repl.target)
     print("Accuracy of the pre-trained model after fine-tunning", acc)
     f = open("acc_log.txt", "w")
@@ -570,33 +555,33 @@ if FINE_TUNE :
     f.close()
 
   print("Save Checkpoints :")
-  checkpoint.save(flax_utils.unreplicate(opt_repl.target), "../models/model_diatom_final_checkpoints_with_data_aug.npz")
-
-
+  checkpoint.save(flax_utils.unreplicate(opt_repl.target),
+                  "../models/model_diatom_final_checkpoints_with_data_aug.npz")
 
 
 if CHECKPOINTS_TEST:
   print_banner("CHECKPOINTS_TEST")
 
   # Load model definition & initialize random parameters.
-  VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=num_classes)
+  VisionTransformer = models.KNOWN_MODELS[model].partial(
+      num_classes=num_classes)
   _, params = VisionTransformer.init_by_shape(
       jax.random.PRNGKey(0),
       # Discard the "num_local_devices" dimension of the batch for initialization.
       [(batch['image'].shape[1:], batch['image'].dtype.name)])
 
-
   #checkpoints_file_path = "../models/model_diatom_final_checkpoints_with_data_aug.npz"
   checkpoints_file_path = "../models/model_diatom_final_checkpoints.npz"
   params = checkpoint.load_pretrained_after_fine_tuning(
-    pretrained_path=checkpoints_file_path,
-    init_params=params,
-    model_config=models.CONFIGS[model],
-    logger=logger,
+      pretrained_path=checkpoints_file_path,
+      init_params=params,
+      model_config=models.CONFIGS[model],
+      logger=logger,
   )
 
   print('params.cls:', type(params['cls']).__name__, params['cls'].shape)
-  print('params_repl.cls:', type(params_repl['cls']).__name__, params_repl['cls'].shape)
+  print('params_repl.cls:', type(
+      params_repl['cls']).__name__, params_repl['cls'].shape)
 
   # Then map the call to our model's forward pass into all available devices.
   vit_apply_repl = jax.pmap(VisionTransformer.call)
@@ -604,7 +589,6 @@ if CHECKPOINTS_TEST:
   params_repl = flax.jax_utils.replicate(params)
   #acc = get_accuracy(params_repl)
   #print("Accuracy of the pre-trained model after fine-tunning", acc)
-
 
   #Confusion Matrix
   predicted, labels = get_predict_labels_on_test_data(params_repl)
@@ -615,25 +599,24 @@ if CHECKPOINTS_TEST:
 
   print(confusion_matrix)
 
-  plot_confusion_matrix(confusion_matrix, "Confusion Matrix Diatom", "confusion_matrix.png")
+  plot_confusion_matrix(
+      confusion_matrix, "Confusion Matrix Diatom", "confusion_matrix.png")
 
 
 ###########
 #INFERENCE#
 ###########
 
-if INFERENCE :
+if INFERENCE:
   print_banner("INFERENCE")
 
   #VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=1000)
-  VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=166) #2
-
+  VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=166)  # 2
 
   # Load and convert pretrained checkpoint.
   #params = checkpoint.load(f'{model}_imagenet2012.npz')
   params = checkpoint.load('../models/model_diatom_final_checkpoints.npz')
   params['pre_logits'] = {}  # Need to restore empty leaf for Flax.
-
 
   # Get imagenet labels.
   imagenet_labels = dict(enumerate(open('ilsvrc2012_wordnet_lemmas.txt')))
@@ -644,11 +627,11 @@ if INFERENCE :
   #Get cat or dog image
   #img = PIL.Image.open('pic_dog.jpg')
   img = PIL.Image.open('BRG_UULN_10750.png')
-  img = img.resize((384,384))
+  img = img.resize((384, 384))
 
   # Predict on a batch with a single item
-  logits, = VisionTransformer.call(params, (np.array(img) / 128 - 1)[None, ...])
-
+  logits, = VisionTransformer.call(
+      params, (np.array(img) / 128 - 1)[None, ...])
 
   preds = flax.nn.softmax(logits)
   # for idx in preds.argsort()[:-11:-1]:
@@ -657,7 +640,6 @@ if INFERENCE :
   print("Predictions : ", preds)
   for idx in preds.argsort()[:-11:-1]:
      print("Class ID : ", idx, "Proba : ", preds[idx])
-
 
   #print("airplane , automobile, bird, cat, deer, dog, frog, horse, ship, truck")
   #print("classes : dog, cat ")
