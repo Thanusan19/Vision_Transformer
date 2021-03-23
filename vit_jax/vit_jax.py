@@ -215,20 +215,25 @@ def make_split_from_descfile(ds_description_path: str, dataset_path: str,
   ## TODO : Comment : The random_state won't change a thing since our label list was written in arbitrary order
   ## Except if we use the same description file.
 
-  # Stratified Split into Train and Test dataset
-  X_train, X_test, y_train, y_test = train_test_split(
-      img_list, lbl_list, test_size=val_prop+test_prop, random_state=42, stratify=lbl_list)
-
   if doVal:
+    # Stratified Split into Train and Test dataset
+    X_train, X_test, y_train, y_test = train_test_split(
+        img_list, lbl_list, test_size=val_prop+test_prop, random_state=42, stratify=lbl_list)
+
     # Calculate the val proportion to the test proportion
-    val_prop_to_test = val_prop/test_prop
+    val_prop_to_test = val_prop/(val_prop+test_prop)
 
     # Stratified Split into Train and Validation dataset
     X_test, X_val, y_test, y_val = train_test_split(
         X_test, y_test, test_size=val_prop_to_test, random_state=42, stratify=y_test)
 
     return X_train, y_train, X_test, y_test, X_val, y_val
+
   else:
+    # Stratified Split into Train and Test dataset
+    X_train, X_test, y_train, y_test = train_test_split(
+        img_list, lbl_list, test_size=test_prop, random_state=42, stratify=lbl_list)
+    
     return X_train, y_train, X_test, y_test
 
 
@@ -316,7 +321,7 @@ else:
       dataset_path='dataset/diatom_dataset',
       train_prop=0.7, test_prop=0.2, val_prop=0.1, doVal=True)
   
-  print(X_train.shape, X_test.shape, X_val.shape)
+  print(len(X_train), len(X_test), len(X_val))
 
   dgscts_train = MyDogsCats(dataset_path='dataset/diatom_dataset',
                             X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=True)

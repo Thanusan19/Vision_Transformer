@@ -263,7 +263,7 @@ class MyDogsCats:
 
   def getDataset(self):
       generator = self._generator
-      print("nbr samples ", self.num_samples)
+      # print("nbr samples ", self.num_samples)
       return tf.data.Dataset.from_generator(generator,
                                             args=[],
                                             output_types={'image': tf.float32, 'label': tf.int32},
