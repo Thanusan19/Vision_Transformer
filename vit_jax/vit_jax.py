@@ -138,14 +138,14 @@ def get_accuracy_train(params_repl, nbr_samples, batch):
   return good / total
 
 
-def cross_entropy_loss(*, logits, labels):
-  logp = jax.nn.log_softmax(logits)
-  return -jnp.mean(jnp.sum(logp * labels, axis=1))
+# def cross_entropy_loss(*, logits, labels):
+#   logp = jax.nn.log_softmax(logits)
+#   return -jnp.mean(jnp.sum(logp * labels, axis=1))
 
-def loss_fn(params, update_rng, images, labels):
-  with flax.nn.stochastic(update_rng):
-    logits = VisionTransformer.call(params, images, train=True)
-  return cross_entropy_loss(logits=logits, labels=labels)
+# def loss_fn(params, update_rng, images, labels):
+#   with flax.nn.stochastic(update_rng):
+#     logits = VisionTransformer.call(params, images, train=True)
+#   return cross_entropy_loss(logits=logits, labels=labels)
 
 
 def learning_curve_per_train_steps(Loss_list):
@@ -574,8 +574,8 @@ if FINE_TUNE:
   ):
 
     #Training step : update weights
-    opt_repl, loss_repl, update_rngs = update_fn_repl(
-        opt_repl, lr_repl, batch, update_rngs)
+    opt_repl, loss_repl, loss_val_repl, update_rngs = update_fn_repl(
+        opt_repl, lr_repl, batch, batch_val, update_rngs)
 
     #Loss of validation set 
     # for batch in ds_val.as_numpy_iterator():
@@ -583,8 +583,8 @@ if FINE_TUNE:
     #   loss_val_list.append(val_loss)
     #   print("val_loss : ",val_loss)
 
-    val_loss = 1 #loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
-    print("val_loss : ",val_loss)
+     #loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
+    print("val_loss : ",loss_val_repl)
 
 
     if step == 1:
@@ -618,7 +618,7 @@ if FINE_TUNE:
 
     #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
-    loss_val_list.append(val_loss)
+    loss_val_list.append(loss_val_repl)
 
     #Store Accuracy calculate for each trainig step
     accuracy_val_list.append(accuracy_val)
