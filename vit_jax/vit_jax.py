@@ -138,14 +138,14 @@ def get_accuracy_train(params_repl, nbr_samples, batch):
   return good / total
 
 
-def cross_entropy_loss(*, logits, labels):
-  logp = jax.nn.log_softmax(logits)
-  return -jnp.mean(jnp.sum(logp * labels, axis=1))
+# def cross_entropy_loss(*, logits, labels):
+#   logp = jax.nn.log_softmax(logits)
+#   return -jnp.mean(jnp.sum(logp * labels, axis=1))
 
-def loss_fn(params, update_rng, images, labels):
-  with flax.nn.stochastic(update_rng):
-    logits = VisionTransformer.call(params, images, train=True)
-  return cross_entropy_loss(logits=logits, labels=labels)
+# def loss_fn(params, update_rng, images, labels):
+#   with flax.nn.stochastic(update_rng):
+#     logits = VisionTransformer.call(params, images, train=True)
+#   return cross_entropy_loss(logits=logits, labels=labels)
 
 
 def learning_curve_per_train_steps(Loss_list):
@@ -172,6 +172,7 @@ def plot_learning_curve_per_epochs(train_loss_per_training_steps, val_loss_per_t
   plt.title('Learning Curve : Diatom Dataset')
   plt.plot(Loss_per_epochs, 'b', label='train')
   plt.plot(val_loss_per_epochs, 'g', label='val')
+  plt.legend()
   plt.yscale('log')
   plt.xlabel('Epochs')
   plt.ylabel('Loss : Cross Entropy')
@@ -190,6 +191,7 @@ def plot_acc_per_epochs(train_acc_per_training_steps, val_acc_per_training_steps
   plt.title('Acc Curve : Diatom Dataset')
   plt.plot(train_acc_per_epochs, 'b',label='train')
   plt.plot(val_acc_per_epochs, 'g', label='val')
+  plt.legend()
   plt.yscale('log')
   plt.xlabel('Epochs')
   plt.ylabel('Accuracy')
@@ -337,7 +339,7 @@ DATASET = 2 --> DIATOM dataset
 """
 DATASET = 2
 # 127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
-batch_size = 512
+batch_size = 256 #512
 
 
 if(DATASET == 0):
@@ -525,7 +527,7 @@ if FINE_TUNE:
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  epochs = 2  # 600
+  epochs = 5  # 600
   total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs  # 300
   print("Total nbr backward steps : ", total_steps)
   print("Total nbr epochs : ", epochs)
@@ -574,8 +576,8 @@ if FINE_TUNE:
   ):
 
     #Training step : update weights
-    opt_repl, loss_repl, update_rngs = update_fn_repl(
-        opt_repl, lr_repl, batch, update_rngs)
+    opt_repl, loss_repl, loss_val_repl, update_rngs = update_fn_repl(
+        opt_repl, lr_repl, batch, batch_val, update_rngs)
 
     #Loss of validation set 
     # for batch in ds_val.as_numpy_iterator():
@@ -583,8 +585,8 @@ if FINE_TUNE:
     #   loss_val_list.append(val_loss)
     #   print("val_loss : ",val_loss)
 
-    val_loss = loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
-    print("val_loss : ",val_loss)
+    #loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
+    print("val_loss : ",loss_val_repl)
 
 
     if step == 1:
@@ -618,7 +620,7 @@ if FINE_TUNE:
 
     #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
-    loss_val_list.append(val_loss)
+    loss_val_list.append(loss_val_repl)
 
     #Store Accuracy calculate for each trainig step
     accuracy_val_list.append(accuracy_val)

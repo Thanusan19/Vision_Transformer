@@ -44,7 +44,7 @@ def make_update_fn(vit_fn, accum_steps):
 
   # Update step, replicated over all TPUs/GPUs
   @functools.partial(jax.pmap, axis_name='batch', donate_argnums=(0,))
-  def update_fn(opt, lr, batch, update_rng):
+  def update_fn(opt, lr, batch, batch_val, update_rng):
 
     # Bind the rng key to the device id (which is unique across hosts)
     # Note: This is only used for multi-host training (i.e. multiple computers
@@ -64,10 +64,18 @@ def make_update_fn(vit_fn, accum_steps):
     l, g = hyper.accumulate_gradient(
         jax.value_and_grad(loss_fn), opt.target, batch['image'], batch['label'],
         accum_steps)
+
+    #set accum_step to "0" to get only the validation loss
+    l_val, _ = hyper.accumulate_gradient(
+        jax.value_and_grad(loss_fn), opt.target, batch_val['image'], batch_val['label'],
+        0)
+
     g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
 
+
+
     opt = opt.apply_gradient(g, learning_rate=lr)
-    return opt, l, new_update_rng
+    return opt, l, l_val, new_update_rng
 
   return update_fn
 
