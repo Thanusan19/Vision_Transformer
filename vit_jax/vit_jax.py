@@ -337,7 +337,7 @@ DATASET = 2 --> DIATOM dataset
 """
 DATASET = 2
 # 127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
-batch_size = 256 #512
+batch_size = 512
 
 
 if(DATASET == 0):
@@ -583,7 +583,7 @@ if FINE_TUNE:
     #   loss_val_list.append(val_loss)
     #   print("val_loss : ",val_loss)
 
-    val_loss = 1 #loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
+    val_loss = loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
     print("val_loss : ",val_loss)
 
 
@@ -593,8 +593,8 @@ if FINE_TUNE:
 
     if progress_every and step % progress_every == 0:
       done = step / total_steps
-      logger.info(f'Step: {step}/{total_steps} {100*done:.1f}%, '
-                  f'ETA: {(time.time()-t0)/done*(1-done)/3600:.2f}h')
+      #logger.info(f'Step: {step}/{total_steps} {100*done:.1f}%, '
+      #            f'ETA: {(time.time()-t0)/done*(1-done)/3600:.2f}h')
 
     # Validation set evaluation
     if ((val_eval_every and step % val_eval_every == 0) or
@@ -609,12 +609,12 @@ if FINE_TUNE:
       accuracy_train = get_accuracy_train(opt_repl.target, nbr_train_samples, batch)
 
       lr = float(lr_repl[0])
-      logger.info(f'Step: {step} '
-                  f'Learning rate: {lr:.7f}, '
-                  f'Validation accuracy: {accuracy_val:0.5f}'
-                  f'Training accuracy: {accuracy_train:0.5f}'
-                  f'Training Loss: {loss_repl:0.5f}'
-                  f'Validation Loss: {val_loss:0.5f}')
+      #logger.info(f'Step: {step} '
+      #            f'Learning rate: {lr:.7f}, '
+      #            f'Validation accuracy: {accuracy_val:0.5f}'
+      #            f'Training accuracy: {accuracy_train:0.5f}'
+      #            f'Training Loss: {loss_repl:0.5f}'
+      #            f'Validation Loss: {val_loss:0.5f}')
 
     #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
