@@ -34,7 +34,7 @@ sys.path.append(
 
 # Shows the number of available devices.
 # In a CPU/GPU runtime this will be a single device.
-jax.local_devices()
+print("Num local device : ", jax.local_devices())
 
 # Pre-trained model name
 model = 'ViT-B_16'
@@ -339,7 +339,7 @@ DATASET = 2 --> DIATOM dataset
 """
 DATASET = 2
 # 127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
-batch_size = 256 #512
+batch_size = 512  #256 #512
 
 
 if(DATASET == 0):
@@ -471,6 +471,9 @@ except tf.errors.OutOfRangeError:
 ########################
 
 print_banner("LOAD PRE-TRAINED MODEL")
+print("num_devices : ", num_devices)
+#jax_array = jnp.zeros((1,2), dtype=jnp.uint32)
+#jax_array = np.zeros((2,1), dtype=np.uint32)
 
 # Load model definition & initialize random parameters.
 VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=num_classes)
