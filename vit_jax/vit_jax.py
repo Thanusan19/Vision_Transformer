@@ -34,7 +34,7 @@ sys.path.append(
 
 # Shows the number of available devices.
 # In a CPU/GPU runtime this will be a single device.
-jax.local_devices()
+print("Num local device : ", jax.local_devices())
 
 # Pre-trained model name
 model = 'ViT-B_16'
@@ -43,6 +43,7 @@ logdir = './logs'
 logger = logging_ViT.setup_logger('./logs')
 INFERENCE = False
 FINE_TUNE = True
+LOAD_FINE_TUNNED_CHECKPOINTS = False
 CHECKPOINTS_TEST = False
 
 # Helper functions for images.
@@ -116,7 +117,8 @@ def get_accuracy_val(params_repl, nbr_samples):
   good = total = 0
   steps = nbr_samples // batch_size
 
-  for _, batch in zip(tqdm.trange(steps), ds_val.as_numpy_iterator()):
+  # for _, batch in zip(tqdm.trange(steps), ds_val.as_numpy_iterator()):
+  for _, batch in zip(range(steps), ds_val.as_numpy_iterator()):
     predicted = vit_apply_repl(params_repl, batch['image'])
     is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
     good += is_same.sum()
@@ -172,6 +174,7 @@ def plot_learning_curve_per_epochs(train_loss_per_training_steps, val_loss_per_t
   plt.title('Learning Curve : Diatom Dataset')
   plt.plot(Loss_per_epochs, 'b', label='train')
   plt.plot(val_loss_per_epochs, 'g', label='val')
+  plt.legend()
   plt.yscale('log')
   plt.xlabel('Epochs')
   plt.ylabel('Loss : Cross Entropy')
@@ -190,6 +193,7 @@ def plot_acc_per_epochs(train_acc_per_training_steps, val_acc_per_training_steps
   plt.title('Acc Curve : Diatom Dataset')
   plt.plot(train_acc_per_epochs, 'b',label='train')
   plt.plot(val_acc_per_epochs, 'g', label='val')
+  plt.legend()
   plt.yscale('log')
   plt.xlabel('Epochs')
   plt.ylabel('Accuracy')
@@ -337,7 +341,7 @@ DATASET = 2 --> DIATOM dataset
 """
 DATASET = 2
 # 127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
-batch_size = 256 #512
+batch_size = 512  #256 #512
 
 
 if(DATASET == 0):
@@ -469,6 +473,9 @@ except tf.errors.OutOfRangeError:
 ########################
 
 print_banner("LOAD PRE-TRAINED MODEL")
+print("num_devices : ", num_devices)
+#jax_array = jnp.zeros((1,2), dtype=jnp.uint32)
+#jax_array = np.zeros((2,1), dtype=np.uint32)
 
 # Load model definition & initialize random parameters.
 VisionTransformer = models.KNOWN_MODELS[model].partial(num_classes=num_classes)
@@ -483,12 +490,21 @@ _, params = VisionTransformer.init_by_shape(
 # modifying the parameters a bit, e.g. changing the final layers, and resizing
 # the positional embeddings.
 # For details, refer to the code and to the methods of the paper.
-params = checkpoint.load_pretrained(
-    pretrained_path=f'{model}.npz',
+if not (LOAD_FINE_TUNNED_CHECKPOINTS) :
+  params = checkpoint.load_pretrained(
+      pretrained_path=f'{model}.npz',
+      init_params=params,
+      model_config=models.CONFIGS[model],
+      logger=logger,
+  )
+else :
+  checkpoints_file_path = "../models/model_diatom_checkpoint_step_6000_with_data_aug.npz"
+  params = checkpoint.load_pretrained_after_fine_tuning(
+    pretrained_path=checkpoints_file_path,
     init_params=params,
     model_config=models.CONFIGS[model],
     logger=logger,
-)
+  )
 
 
 ################################################
@@ -512,8 +528,9 @@ print('params_repl.cls:', type(params_repl['cls']).__name__, params_repl['cls'].
 vit_apply_repl = jax.pmap(VisionTransformer.call)
 
 # Random performance without fine-tuning.
-if 0:
-  acc = get_accuracy(params_repl)
+if 1:
+  nbr_samples = dgscts_test.get_num_samples() 
+  acc = get_accuracy(params_repl, nbr_samples)
   print("Accuracy of the pre-trained model before fine-tunning : ", acc)
 
 ###########
@@ -525,7 +542,7 @@ if FINE_TUNE:
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  epochs = 1  # 600
+  epochs = 20  # 600
   total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs  # 300
   print("Total nbr backward steps : ", total_steps)
   print("Total nbr epochs : ", epochs)
@@ -583,8 +600,8 @@ if FINE_TUNE:
     #   loss_val_list.append(val_loss)
     #   print("val_loss : ",val_loss)
 
-     #loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
-    print("val_loss : ",loss_val_repl)
+    #loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
+    # print("val_loss : ", loss_val_repl)
 
 
     if step == 1:
@@ -593,8 +610,8 @@ if FINE_TUNE:
 
     if progress_every and step % progress_every == 0:
       done = step / total_steps
-      logger.info(f'Step: {step}/{total_steps} {100*done:.1f}%, '
-                  f'ETA: {(time.time()-t0)/done*(1-done)/3600:.2f}h')
+      #logger.info(f'Step: {step}/{total_steps} {100*done:.1f}%, '
+      #            f'ETA: {(time.time()-t0)/done*(1-done)/3600:.2f}h')
 
     # Validation set evaluation
     if ((val_eval_every and step % val_eval_every == 0) or
@@ -609,12 +626,12 @@ if FINE_TUNE:
       accuracy_train = get_accuracy_train(opt_repl.target, nbr_train_samples, batch)
 
       lr = float(lr_repl[0])
-      logger.info(f'Step: {step} '
-                  f'Learning rate: {lr:.7f}, '
-                  f'Validation accuracy: {accuracy_val:0.5f}'
-                  f'Training accuracy: {accuracy_train:0.5f}'
-                  f'Training Loss: {loss_repl:0.5f}'
-                  f'Validation Loss: {val_loss:0.5f}')
+      #logger.info(f'Step: {step} '
+      #            f'Learning rate: {lr:.7f}, '
+      #            f'Validation accuracy: {accuracy_val:0.5f}'
+      #            f'Training accuracy: {accuracy_train:0.5f}'
+      #            f'Training Loss: {loss_repl:0.5f}'
+      #            f'Validation Loss: {val_loss:0.5f}')
 
     #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
@@ -641,7 +658,7 @@ if FINE_TUNE:
 
   #Evaluate test accuracy
   if 1:
-    nbr_samples = dgscts_val.get_num_samples() 
+    nbr_samples = dgscts_test.get_num_samples() 
     acc = get_accuracy(opt_repl.target, nbr_samples)
     print("Accuracy of the pre-trained model after fine-tunning", acc)
     f = open("acc_log.txt", "w")
