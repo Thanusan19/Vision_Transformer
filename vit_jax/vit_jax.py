@@ -26,6 +26,9 @@ import logging_ViT
 import flax.jax_utils as flax_utils
 import jax.numpy as jnp
 
+import flax.nn as nn
+
+
 
 from os.path import dirname
 sys.path.append(
@@ -341,7 +344,7 @@ DATASET = 2 --> DIATOM dataset
 """
 DATASET = 2
 # 127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
-batch_size = 32 #512
+batch_size = 64 #512
 
 
 if(DATASET == 0):
@@ -590,10 +593,32 @@ if FINE_TUNE:
       lr_iter
   ):
 
+    #print batch log
     print("batch image shape : ", batch['image'].shape)
     print("batch label shape : ", batch['label'].shape)
     print("batch label shape : ", batch.keys())
 
+    #cnn model
+    x = batch['image'][0][0]
+    x = nn.Conv(x, 64, patches.size, strides=patches.size, padding='VALID', name='conv64_1') 
+    x = nn.Conv(x, 64, patches.size, strides=patches.size, padding='VALID', name='conv64_2') 
+    x = nn.Conv(x, 128, patches.size, strides=patches.size, padding='VALID', name='conv128')
+
+    print("Model conv 3 output shape: ", x.shape)
+    b, h, w, c = x.shape
+    x = x.reshape((1, b, h, w, c))
+    print("Model conv 3 output after reshape: ", x.shape)
+
+    y = []
+    for i in range(b):
+      y.append(batch['label'][0][0])
+
+    y = y.reshape((1,b,166))
+
+    batch_conv = {
+    "image" : x
+    "label" : y
+    }
 
     #Training step : update weights
     opt_repl, loss_repl, loss_val_repl, update_rngs = update_fn_repl(
