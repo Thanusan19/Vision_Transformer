@@ -352,22 +352,22 @@ class MyDogsCats:
         im = cv2.warpAffine(im, trans_mat, tuple(self._end_im_dim),
                             borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
 
-#        # Choose a random angle
-#        angle = np.random.rand()*360
-#
-#        # Rotate the image
-#        rot_mat = cv2.getRotationMatrix2D(end_im_center, angle, 1.0)
-#        im = cv2.warpAffine(im, rot_mat, tuple(self._end_im_dim),
-#                            borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
-#
-#        # Choose a random translation
-#        a, b = translate_range
-#        rand_tx_ty = (b - a) * np.random.random_sample(2) + a
-#
-#        # Translate the image
-#        rand_trans_mat = np.column_stack([[1, 0], [0, 1], rand_tx_ty])
-#        im = cv2.warpAffine(im, rand_trans_mat, tuple(self._end_im_dim),
-#                            borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
+        # Choose a random angle
+        angle = np.random.rand()*360
+
+        # Rotate the image
+        rot_mat = cv2.getRotationMatrix2D(end_im_center, angle, 1.0)
+        im = cv2.warpAffine(im, rot_mat, tuple(self._end_im_dim),
+                            borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
+
+        # Choose a random translation
+        a, b = translate_range
+        rand_tx_ty = (b - a) * np.random.random_sample(2) + a
+
+        # Translate the image
+        rand_trans_mat = np.column_stack([[1, 0], [0, 1], rand_tx_ty])
+        im = cv2.warpAffine(im, rand_trans_mat, tuple(self._end_im_dim),
+                            borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
 
         img = im
       else:
