@@ -208,7 +208,7 @@ class VisionTransformer(nn.Module):
             transformer=None,
             representation_size=None,
             classifier='gap',
-            model_3_conv=False):
+            model_3_conv=True):
 
     # (Possibly partial) ResNet root.
     if resnet is not None:
@@ -233,8 +233,8 @@ class VisionTransformer(nn.Module):
             name=f'block{i + 1}')
 
     if model_3_conv:
-      x = nn.Conv(x, 64, patches.size, strides=patches.size, padding='VALID', name='conv64') 
-      x = nn.Conv(x, 64, patches.size, strides=patches.size, padding='VALID', name='conv64') 
+      x = nn.Conv(x, 64, patches.size, strides=patches.size, padding='VALID', name='conv64_1') 
+      x = nn.Conv(x, 64, patches.size, strides=patches.size, padding='VALID', name='conv64_2') 
       x = nn.Conv(x, 128, patches.size, strides=patches.size, padding='VALID', name='conv128')
     print("Model conv 3 output shape: ", x.shape) 
 
