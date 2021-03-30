@@ -341,7 +341,7 @@ DATASET = 2 --> DIATOM dataset
 """
 DATASET = 2
 # 127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
-batch_size = 512  #256 #512
+batch_size = 256 #512
 
 
 if(DATASET == 0):

@@ -208,7 +208,7 @@ class VisionTransformer(nn.Module):
             transformer=None,
             representation_size=None,
             classifier='gap',
-            model_3_conv=True):
+            model_3_conv=False):
 
     # (Possibly partial) ResNet root.
     if resnet is not None:
