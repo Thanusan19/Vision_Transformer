@@ -341,7 +341,7 @@ DATASET = 2 --> DIATOM dataset
 """
 DATASET = 2
 # 127  #64 --> GPU3  #256  # 512 --> Reduce to 256 if running on a single GPU.
-batch_size = 256 #512
+batch_size = 32 #512
 
 
 if(DATASET == 0):
@@ -589,6 +589,11 @@ if FINE_TUNE:
       ds_val.as_numpy_iterator(),
       lr_iter
   ):
+
+    print("batch image shape : ", batch['image'].shape)
+    print("batch label shape : ", batch['label'].shape)
+    print("batch label shape : ", batch.keys())
+
 
     #Training step : update weights
     opt_repl, loss_repl, loss_val_repl, update_rngs = update_fn_repl(
