@@ -43,6 +43,7 @@ logdir = './logs'
 logger = logging_ViT.setup_logger('./logs')
 INFERENCE = False
 FINE_TUNE = True
+LOAD_FINE_TUNNED_CHECKPOINTS = False
 CHECKPOINTS_TEST = False
 
 # Helper functions for images.
@@ -116,7 +117,8 @@ def get_accuracy_val(params_repl, nbr_samples):
   good = total = 0
   steps = nbr_samples // batch_size
 
-  for _, batch in zip(tqdm.trange(steps), ds_val.as_numpy_iterator()):
+  # for _, batch in zip(tqdm.trange(steps), ds_val.as_numpy_iterator()):
+  for _, batch in zip(range(steps), ds_val.as_numpy_iterator()):
     predicted = vit_apply_repl(params_repl, batch['image'])
     is_same = predicted.argmax(axis=-1) == batch['label'].argmax(axis=-1)
     good += is_same.sum()
@@ -485,12 +487,21 @@ _, params = VisionTransformer.init_by_shape(
 # modifying the parameters a bit, e.g. changing the final layers, and resizing
 # the positional embeddings.
 # For details, refer to the code and to the methods of the paper.
-params = checkpoint.load_pretrained(
-    pretrained_path=f'{model}.npz',
+if not (LOAD_FINE_TUNNED_CHECKPOINTS) :
+  params = checkpoint.load_pretrained(
+      pretrained_path=f'{model}.npz',
+      init_params=params,
+      model_config=models.CONFIGS[model],
+      logger=logger,
+  )
+else :
+  checkpoints_file_path = "../models/model_diatom_checkpoint_step_6000_with_data_aug.npz"
+  params = checkpoint.load_pretrained_after_fine_tuning(
+    pretrained_path=checkpoints_file_path,
     init_params=params,
     model_config=models.CONFIGS[model],
     logger=logger,
-)
+  )
 
 
 ################################################
@@ -514,8 +525,9 @@ print('params_repl.cls:', type(params_repl['cls']).__name__, params_repl['cls'].
 vit_apply_repl = jax.pmap(VisionTransformer.call)
 
 # Random performance without fine-tuning.
-if 0:
-  acc = get_accuracy(params_repl)
+if 1:
+  nbr_samples = dgscts_test.get_num_samples() 
+  acc = get_accuracy(params_repl, nbr_samples)
   print("Accuracy of the pre-trained model before fine-tunning : ", acc)
 
 ###########
@@ -527,7 +539,7 @@ if FINE_TUNE:
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  epochs = 5  # 600
+  epochs = 100  # 600
   total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs  # 300
   print("Total nbr backward steps : ", total_steps)
   print("Total nbr epochs : ", epochs)
@@ -586,7 +598,7 @@ if FINE_TUNE:
     #   print("val_loss : ",val_loss)
 
     #loss_fn(opt_repl.target, update_rngs, batch_val['image'], batch_val['label'])
-    print("val_loss : ",loss_val_repl)
+    # print("val_loss : ", loss_val_repl)
 
 
     if step == 1:
@@ -643,7 +655,7 @@ if FINE_TUNE:
 
   #Evaluate test accuracy
   if 1:
-    nbr_samples = dgscts_val.get_num_samples() 
+    nbr_samples = dgscts_test.get_num_samples() 
     acc = get_accuracy(opt_repl.target, nbr_samples)
     print("Accuracy of the pre-trained model after fine-tunning", acc)
     f = open("acc_log.txt", "w")
