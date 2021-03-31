@@ -531,7 +531,7 @@ print('params_repl.cls:', type(params_repl['cls']).__name__, params_repl['cls'].
 vit_apply_repl = jax.pmap(VisionTransformer.call)
 
 # Random performance without fine-tuning.
-if 1:
+if 0:
   nbr_samples = dgscts_test.get_num_samples() 
   acc = get_accuracy(params_repl, nbr_samples)
   print("Accuracy of the pre-trained model before fine-tunning : ", acc)
@@ -599,30 +599,52 @@ if FINE_TUNE:
     print("batch label shape : ", batch.keys())
 
     #cnn model
-    x = batch['image'][0][0]
-    x = nn.Conv(x, 64, patches.size, strides=patches.size, padding='VALID', name='conv64_1') 
-    x = nn.Conv(x, 64, patches.size, strides=patches.size, padding='VALID', name='conv64_2') 
-    x = nn.Conv(x, 128, patches.size, strides=patches.size, padding='VALID', name='conv128')
+    #x = batch['image'][0][0]
+    x = batch['image']
+    #x = x.reshape((1,x.shape[0],x.shape[1],x.shape[2]))
+    print("x shape before cnn model : ", x.shape)
+    x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='valid')(x)
+    x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='valid')(x)
+    x = tf.keras.layers.Conv2D(filters=128, kernel_size=3, strides=(1, 1), padding='valid')(x)
 
+    x = x.numpy()
+    x = np.einsum('klijm->klmij', x)
+    x = x.reshape((x.shape[0], x.shape[1]*x.shape[2], x.shape[3], x.shape[4]))
     print("Model conv 3 output shape: ", x.shape)
-    b, h, w, c = x.shape
-    x = x.reshape((1, b, h, w, c))
-    print("Model conv 3 output after reshape: ", x.shape)
 
-    y = []
-    for i in range(b):
-      y.append(batch['label'][0][0])
+    N, B, W, H = x.shape
+    x_copy = x
+    x = np.zeros((x.shape[0],x.shape[1],x.shape[2],x.shape[3],3))
+    #for n in range(N):
+       #for b in range(B):
+          #for w in range(W):
+             #for h in range(H):
+               #x[n][b][w][h][0] = x_copy[n][b][w][h]
+               #x[n][b][w][h][1] = x_copy[n][b][w][h]
+               #x[n][b][w][h][2] = x_copy[n][b][w][h]
 
-    y = y.reshape((1,b,166))
+    #x[:][:][:][:][0] = x_copy[:][:][:][:]
+    print("Model conv 3 output shape with 3 same channels : ", x.shape)
+
+ 
+    #b, h, w, c = x.shape
+    #x = x.reshape((1, b, h, w, c))
+    #print("Model conv 3 output after reshape: ", x.shape)
+
+    #y = []
+    #for i in range(b):
+    #  y.append(batch['label'][0][0])
+
+    #y = y.reshape((1,b,166))
 
     batch_conv = {
-    "image" : x
-    "label" : y
+    "image" : x,
+    "label" : batch['label']  #batch['label'][:][0][:]
     }
 
     #Training step : update weights
     opt_repl, loss_repl, loss_val_repl, update_rngs = update_fn_repl(
-        opt_repl, lr_repl, batch, batch_val, update_rngs)
+        opt_repl, lr_repl, batch_conv, batch_val, update_rngs)
 
     #Loss of validation set 
     # for batch in ds_val.as_numpy_iterator():
