@@ -270,6 +270,9 @@ class MyDogsCats:
                                             output_shapes={'image': tf.TensorShape((self._end_im_size, self._end_im_size, self._num_channels)),
                                                            'label': tf.TensorShape((self._one_hot_depth))})
 
+  def contrast_clipped_floored(self, x, a, b):
+    return np.floor(np.clip(a*x+b, 0, 255)).astype(np.uint8)
+
   #####
   # Generator
   #####
@@ -284,6 +287,11 @@ class MyDogsCats:
       # Parameters
       # blend_size = (120, 120)
       translate_range = (-80, 80)
+
+      # Contrast ranges
+      a_range = (0.5, 2)
+      b_range = (-64, 64)
+
       # total_size = blend_size[0] + blend_size[1]
 
       # left = blend_size[0]
@@ -327,8 +335,26 @@ class MyDogsCats:
         # start by ensuring images are the size of the start dim
         im = cv2.resize(im, tuple(self._start_im_dim))
 
+
+        # NEW : Horzontal/Vertical flips
+        rand_flip = np.random.rand(2)
+
+        # Horizontal Flip
+        if rand_flip[0] > 0.5:
+            im = cv2.flip(im, 0)
+
+        # Vertical Flip
+        if rand_flip[1] > 0.5:
+            im = cv2.flip(im, 1)
+
+        # Random Contrast
+        a, b = np.random.rand(2)
+        a = (a_range[1] - a_range[0]) * a + a_range[0]
+        b = (b_range[1] - b_range[0]) * b + b_range[0]
+        im = self.contrast_clipped_floored(im, a, b)
+
+
         # Find the color to blend (update : take the median color of the image)
-        # fond_couleur = np.median(im[1:30, left//2:left//2+10, :], axis=[0,1])
         fond_couleur = np.median(im[:, :, :], axis=[0, 1])
         # fond_couleur = (0, 255, 0)
 
@@ -352,22 +378,28 @@ class MyDogsCats:
         im = cv2.warpAffine(im, trans_mat, tuple(self._end_im_dim),
                             borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
 
-        # Choose a random angle
-        angle = np.random.rand()*360
+        # # Choose a random angle
+        # angle = np.random.rand()*360
 
-        # Rotate the image
-        rot_mat = cv2.getRotationMatrix2D(end_im_center, angle, 1.0)
-        im = cv2.warpAffine(im, rot_mat, tuple(self._end_im_dim),
-                            borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
+        # # Rotate the image
+        # rot_mat = cv2.getRotationMatrix2D(end_im_center, angle, 1.0)
+        # im = cv2.warpAffine(im, rot_mat, tuple(self._end_im_dim),
+        #                     borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
 
-        # Choose a random translation
-        a, b = translate_range
-        rand_tx_ty = (b - a) * np.random.random_sample(2) + a
+        # # Choose a random translation
+        # a, b = translate_range
+        # rand_tx_ty = (b - a) * np.random.random_sample(2) + a
 
-        # Translate the image
-        rand_trans_mat = np.column_stack([[1, 0], [0, 1], rand_tx_ty])
-        im = cv2.warpAffine(im, rand_trans_mat, tuple(self._end_im_dim),
-                            borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
+        # # Translate the image
+        # rand_trans_mat = np.column_stack([[1, 0], [0, 1], rand_tx_ty])
+        # im = cv2.warpAffine(im, rand_trans_mat, tuple(self._end_im_dim),
+        #                     borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
+
+
+        # NEW Gaussian Bluring
+        sig = np.random.rand() * 3
+        im = cv2.GaussianBlur(im, (0, 0), sig) # Kernel size is automatic
+
 
         img = im
       else:
