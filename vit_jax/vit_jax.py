@@ -542,7 +542,7 @@ if FINE_TUNE:
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  epochs = 20  # 600
+  epochs = 100  # 600
   total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs  # 300
   print("Total nbr backward steps : ", total_steps)
   print("Total nbr epochs : ", epochs)
