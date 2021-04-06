@@ -332,9 +332,11 @@ class MyDogsCats:
 
       # Data Augmentation :
       if self._do_data_augmentation and self._set_type == 'train':
-        # start by ensuring images are the size of the start dim
-        im = cv2.resize(im, tuple(self._start_im_dim))
+        # # start by ensuring images are the size of the start dim
+        # im = cv2.resize(im, tuple(self._start_im_dim))
 
+        # NEW2 : Resize to final size instead
+        im = cv2.resize(im, tuple(self._end_im_dim))
 
         # NEW : Horzontal/Vertical flips
         rand_flip = np.random.rand(2)
@@ -354,11 +356,11 @@ class MyDogsCats:
         im = self.contrast_clipped_floored(im, a, b)
 
 
-        # Find the color to blend (update : take the median color of the image)
-        fond_couleur = np.median(im[:, :, :], axis=[0, 1])
-        # fond_couleur = (0, 255, 0)
+        # # Find the color to blend (update : take the median color of the image)
+        # fond_couleur = np.median(im[:, :, :], axis=[0, 1])
+        # # fond_couleur = (0, 255, 0)
 
-        fond[:, :, :] = fond_couleur
+        # fond[:, :, :] = fond_couleur
 
         #####
         # OLD blending
@@ -366,17 +368,17 @@ class MyDogsCats:
         # Make the blend between the image and the background color
         # im = np.round((im/255.0 * blend_all + fond/255.0 * (1 - blend_all))*255.0).astype(np.uint8)
 
-        # Seamless cloning between the image and the new background
-        # From https://learnopencv.com/seamless-cloning-using-opencv-python-cpp/
-        # Small tweak could be between cv2.MIXED_CLONE or cv2.NORMAL_CLONE, but I can't see the difference for this dataset
-        im = cv2.seamlessClone(src=im, dst=fond, mask=blank,
-                               p=start_im_center, flags=cv2.MIXED_CLONE)
+        # # Seamless cloning between the image and the new background
+        # # From https://learnopencv.com/seamless-cloning-using-opencv-python-cpp/
+        # # Small tweak could be between cv2.MIXED_CLONE or cv2.NORMAL_CLONE, but I can't see the difference for this dataset
+        # im = cv2.seamlessClone(src=im, dst=fond, mask=blank,
+        #                        p=start_im_center, flags=cv2.MIXED_CLONE)
 
-        # Translate to the center of the bigger image
-        tx_ty = np.floor(((self._start_im_dim - self._end_im_dim)/2))
-        trans_mat = np.column_stack([[1, 0], [0, 1], tx_ty])
-        im = cv2.warpAffine(im, trans_mat, tuple(self._end_im_dim),
-                            borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
+        # # Translate to the center of the bigger image
+        # tx_ty = np.floor(((self._start_im_dim - self._end_im_dim)/2))
+        # trans_mat = np.column_stack([[1, 0], [0, 1], tx_ty])
+        # im = cv2.warpAffine(im, trans_mat, tuple(self._end_im_dim),
+        #                     borderMode=cv2.BORDER_CONSTANT, borderValue=fond_couleur)
 
         # # Choose a random angle
         # angle = np.random.rand()*360
