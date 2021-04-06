@@ -605,7 +605,11 @@ if FINE_TUNE:
     print("x shape before cnn model : ", x.shape)
     x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='valid')(x)
     x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='valid')(x)
-    x = tf.keras.layers.Conv2D(filters=3, kernel_size=3, strides=(1, 1), padding='valid')(x)
+    x = tf.keras.layers.Conv2D(filters=128, kernel_size=3, strides=(1, 1), padding='valid')(x)
+    x = tf.reduce_sum(x, 3, keepdims=True)
+    print("x shape after reduce sum : ", x.shape)
+    x = tf.repeat(x, repeats=[3], axis=3)
+    print("x shape after last dim repeat : ", x.shape)
 
     # x = x.numpy()
     # x = np.einsum('klijm->klmij', x)
