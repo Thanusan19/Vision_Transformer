@@ -605,16 +605,17 @@ if FINE_TUNE:
     print("x shape before cnn model : ", x.shape)
     x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='valid')(x)
     x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='valid')(x)
-    x = tf.keras.layers.Conv2D(filters=128, kernel_size=3, strides=(1, 1), padding='valid')(x)
+    x = tf.keras.layers.Conv2D(filters=3, kernel_size=3, strides=(1, 1), padding='valid')(x)
 
-    x = x.numpy()
-    x = np.einsum('klijm->klmij', x)
-    x = x.reshape((x.shape[0], x.shape[1]*x.shape[2], x.shape[3], x.shape[4]))
-    print("Model conv 3 output shape: ", x.shape)
+    # x = x.numpy()
+    # x = np.einsum('klijm->klmij', x)
+    # x = x.reshape((x.shape[0], x.shape[1]*x.shape[2], x.shape[3], x.shape[4]))
+    # print("Model conv 3 output shape: ", x.shape)
 
-    N, B, W, H = x.shape
-    x_copy = x
-    x = np.zeros((x.shape[0],x.shape[1],x.shape[2],x.shape[3],3))
+    # N, B, W, H = x.shape
+    # x_copy = x
+    # x = np.zeros((x.shape[0],x.shape[1],x.shape[2],x.shape[3],3))
+
     #for n in range(N):
        #for b in range(B):
           #for w in range(W):
@@ -637,14 +638,15 @@ if FINE_TUNE:
 
     #y = y.reshape((1,b,166))
 
-    batch_conv = {
-    "image" : x,
-    "label" : batch['label']  #batch['label'][:][0][:]
-    }
+    # batch_conv = {
+    # "image" : x,
+    # "label" : batch['label']  #batch['label'][:][0][:]
+    # }
+
 
     #Training step : update weights
     opt_repl, loss_repl, loss_val_repl, update_rngs = update_fn_repl(
-        opt_repl, lr_repl, batch_conv, batch_val, update_rngs)
+        opt_repl, lr_repl, batch, batch_val, update_rngs)
 
     #Loss of validation set 
     # for batch in ds_val.as_numpy_iterator():
