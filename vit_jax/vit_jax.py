@@ -27,8 +27,9 @@ import flax.jax_utils as flax_utils
 import jax.numpy as jnp
 
 import flax.nn as nn
+import cv2
 
-
+from PIL import Image
 
 from os.path import dirname
 sys.path.append(
@@ -419,7 +420,7 @@ else:
       train_prop=0.7, test_prop=0.2, val_prop=0.1, doVal=True)
 
   dgscts_train = MyDogsCats(dataset_path='dataset/diatom_dataset',
-                            X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=True)
+                            X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=False)
 
   dgscts_test = MyDogsCats(dataset_path='dataset/diatom_dataset',
                            X=X_test, y=y_test, num_class=num_classes, set_type='test', doDataAugmentation=False)
@@ -594,23 +595,29 @@ if FINE_TUNE:
   ):
 
     #print batch log
-    print("batch image shape : ", batch['image'].shape)
-    print("batch label shape : ", batch['label'].shape)
-    print("batch label shape : ", batch.keys())
+    #print("batch image shape : ", batch['image'].shape)
+    #print("batch label shape : ", batch['label'].shape)
+    #print("batch label shape : ", batch.keys())
 
     #cnn model
     #x = batch['image'][0][0]
     x = batch['image']
-    #x = x.reshape((1,x.shape[0],x.shape[1],x.shape[2]))
-    print("x shape before cnn model : ", x.shape)
-    x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='valid')(x)
-    x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='valid')(x)
-    x = tf.keras.layers.Conv2D(filters=128, kernel_size=3, strides=(1, 1), padding='valid')(x)
-    x = tf.reduce_sum(x, 3, keepdims=True)
-    print("x shape after reduce sum : ", x.shape)
-    x = tf.repeat(x, repeats=[3], axis=3)
-    print("x shape after last dim repeat : ", x.shape)
 
+    #x = x.reshape((1,x.shape[0],x.shape[1],x.shape[2]))
+    #print("x shape before cnn model : ", x.shape)
+    x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='same')(x)
+    #print("x shape after conv 64_1 : ", x.shape)
+    x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='same')(x)
+    x = tf.keras.layers.Conv2D(filters=128, kernel_size=3, strides=(1, 1), padding='same')(x)
+    x = tf.reduce_sum(x, 4, keepdims=True)
+    #print("x shape after reduce sum : ", x.shape)
+    x = tf.repeat(x, repeats=[3], axis=4)
+    #print("x shape after last dim repeat : ", x.shape)
+
+    #cv2.imwrite(f"img_cnn_{step}", x[0][0])
+    if 0 :
+      im = Image.fromarray(np.asarray(x[0][0]), 'RGB')
+      im.save(f"img_cnn_{step}.png")
     # x = x.numpy()
     # x = np.einsum('klijm->klmij', x)
     # x = x.reshape((x.shape[0], x.shape[1]*x.shape[2], x.shape[3], x.shape[4]))
@@ -629,7 +636,7 @@ if FINE_TUNE:
                #x[n][b][w][h][2] = x_copy[n][b][w][h]
 
     #x[:][:][:][:][0] = x_copy[:][:][:][:]
-    print("Model conv 3 output shape with 3 same channels : ", x.shape)
+    #print("Model conv 3 output shape with 3 same channels : ", x.shape)
 
  
     #b, h, w, c = x.shape
@@ -646,7 +653,8 @@ if FINE_TUNE:
     # "image" : x,
     # "label" : batch['label']  #batch['label'][:][0][:]
     # }
-
+    batch['image'] = x.numpy()
+    #print("batch image shape : ", batch['image'].shape)
 
     #Training step : update weights
     opt_repl, loss_repl, loss_val_repl, update_rngs = update_fn_repl(
@@ -690,7 +698,7 @@ if FINE_TUNE:
       #            f'Training accuracy: {accuracy_train:0.5f}'
       #            f'Training Loss: {loss_repl:0.5f}'
       #            f'Validation Loss: {val_loss:0.5f}')
-
+      print("val loss : ", loss_val_repl)
     #Store Loss calculate for each trainig step
     Loss_list.append(loss_repl)
     loss_val_list.append(loss_val_repl)
