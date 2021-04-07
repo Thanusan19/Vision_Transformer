@@ -289,8 +289,8 @@ class MyDogsCats:
       translate_range = (-80, 80)
 
       # Contrast ranges
-      a_range = (0.5, 2)
-      b_range = (-64, 64)
+      a_range = (0.8, 1.5)
+      b_range = (-32, 32)
 
       # total_size = blend_size[0] + blend_size[1]
 
