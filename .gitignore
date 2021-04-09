@@ -11,9 +11,11 @@ __pycache__/
 vit_jax/ilsvrc2012_wordnet_lemmas.txt
 .style.yapf
 vit_jax/-TEMPORARY
+vit_jax/nohup.out
 
 #Folders
 vit_jax/logs/
 models/*
 data/*
 vit_jax/dataset/
+
