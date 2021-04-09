@@ -546,7 +546,7 @@ if FINE_TUNE:
   print_banner("FINE-TUNE")
 
   # 100 Steps take approximately 15 minutes in the TPU runtime.
-  epochs = 20  # 600
+  epochs = 40  # 600
   total_steps = (dgscts_train.get_num_samples()//batch_size) * epochs  # 300
   print("Total nbr backward steps : ", total_steps)
   print("Total nbr epochs : ", epochs)
@@ -609,10 +609,14 @@ if FINE_TUNE:
     #print("x shape after conv 64_1 : ", x.shape)
     x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='same')(x)
     x = tf.keras.layers.Conv2D(filters=128, kernel_size=3, strides=(1, 1), padding='same')(x)
-    x = tf.reduce_sum(x, 4, keepdims=True)
-    #print("x shape after reduce sum : ", x.shape)
-    x = tf.repeat(x, repeats=[3], axis=4)
-    #print("x shape after last dim repeat : ", x.shape)
+    x = tf.keras.layers.Conv2D(filters=3, kernel_size=3, strides=(1, 1), padding='same')(x)
+
+    #Sum all features and duplicate the sum in order to feed 3 channels
+    if 0 :
+      x = tf.reduce_sum(x, 4, keepdims=True)
+      #print("x shape after reduce sum : ", x.shape)
+      x = tf.repeat(x, repeats=[3], axis=4)
+      #print("x shape after last dim repeat : ", x.shape)
 
     #cv2.imwrite(f"img_cnn_{step}", x[0][0])
     if 0 :
