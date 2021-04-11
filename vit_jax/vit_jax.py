@@ -603,25 +603,34 @@ if FINE_TUNE:
     #x = batch['image'][0][0]
     x = batch['image']
 
+    if 1 :
+       plt.imshow(np.asarray(x[0][0]))
+       plt.savefig(f'img_input_{step}.png')
+
     #x = x.reshape((1,x.shape[0],x.shape[1],x.shape[2]))
     #print("x shape before cnn model : ", x.shape)
     x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='same')(x)
     #print("x shape after conv 64_1 : ", x.shape)
     x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), padding='same')(x)
     x = tf.keras.layers.Conv2D(filters=128, kernel_size=3, strides=(1, 1), padding='same')(x)
-    x = tf.keras.layers.Conv2D(filters=3, kernel_size=3, strides=(1, 1), padding='same')(x)
+
+    #Convert 128 chanel into 3 channel using CONV
+    if 0 :
+      x = tf.keras.layers.Conv2D(filters=3, kernel_size=3, strides=(1, 1), padding='same')(x)
 
     #Sum all features and duplicate the sum in order to feed 3 channels
-    if 0 :
+    if 1 :
       x = tf.reduce_sum(x, 4, keepdims=True)
       #print("x shape after reduce sum : ", x.shape)
       x = tf.repeat(x, repeats=[3], axis=4)
       #print("x shape after last dim repeat : ", x.shape)
 
     #cv2.imwrite(f"img_cnn_{step}", x[0][0])
-    if 0 :
-      im = Image.fromarray(np.asarray(x[0][0]), 'RGB')
-      im.save(f"img_cnn_{step}.png")
+    if 1 :
+      plt.imshow(np.asarray(x[0][0]))
+      plt.savefig(f'img_cnn_{step}.png')
+      #im = Image.fromarray(np.asarray(x[0][0]), 'RGB')
+      #im.save(f"img_cnn_{step}.png")
     # x = x.numpy()
     # x = np.einsum('klijm->klmij', x)
     # x = x.reshape((x.shape[0], x.shape[1]*x.shape[2], x.shape[3], x.shape[4]))
