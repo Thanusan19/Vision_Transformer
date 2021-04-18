@@ -37,7 +37,7 @@ sys.path.append(
 print("Num local device : ", jax.local_devices())
 
 # Pre-trained model name
-model = 'ViT-B_16'
+model = 'R50+ViT-B_16.npz' #'ViT-B_16'
 
 logdir = './logs'
 logger = logging_ViT.setup_logger('./logs')
@@ -416,7 +416,7 @@ else:
       train_prop=0.7, test_prop=0.2, val_prop=0.1, doVal=True)
 
   dgscts_train = MyDogsCats(dataset_path='dataset/diatom_dataset',
-                            X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=True)
+                            X=X_train, y=y_train, num_class=num_classes, set_type='train', doDataAugmentation=False)
 
   dgscts_test = MyDogsCats(dataset_path='dataset/diatom_dataset',
                            X=X_test, y=y_test, num_class=num_classes, set_type='test', doDataAugmentation=False)
