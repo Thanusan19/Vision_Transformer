@@ -37,7 +37,7 @@ sys.path.append(
 print("Num local device : ", jax.local_devices())
 
 # Pre-trained model name
-model = 'R50+ViT-B_16.npz' #'ViT-B_16'
+model = 'R50+ViT-B_16' #'ViT-B_16'
 
 logdir = './logs'
 logger = logging_ViT.setup_logger('./logs')
