@@ -1,15 +1,15 @@
-# Vision Transformer : Diatom Dataset
+# Vision Transformer: Diatom Dataset
 by SATHIAKUMAR Thanusan and BERNARD Guillaume based on Google's ViT implemtentation.
 
 Note: This repository was forked and modified from [google-research/vision_transformer](https://github.com/google-research/vision_transformer).
 
 ## Introduction
 
-This repository is an academical work on a new subject introduced by google researchers called : 
+This repository is an academical work on a new subject introduced by google researchers called: 
 Transformer for Image classification at scale.
 We worked at Georgia Tech Lorraine with the DREAM research team, a robotic laboratory, in in order to test this new image classification technique on a diatom dataset.
 
-This technique called Vision Transformer was published in the folowing paper : 
+This technique called Vision Transformer was published in the folowing paper: 
 [An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale](https://arxiv.org/abs/2010.11929).
 
 Overview of the model given by Google: we split an image into fixed-size patches, linearly embed each of them, add position embeddings, and feed the resulting sequence of vectors to a standard Transformer encoder. In order to perform classification, we use the standard approach of adding an extra learnable "classification token" to the sequence.
@@ -18,32 +18,32 @@ Overview of the model given by Google: we split an image into fixed-size patches
 
 Make sure you have `Python>=3.6` installed on your machine.
 
-→ Install venv package :
+→ Install venv package:
 ```
 apt-get install python3-venv
 ```
-→ Create jax-ViT venv :  
+→ Create jax-ViT venv:  
 ```
 python3 -m venv venv/jax-ViT
 ```
-→ Activate venv : 
+→ Activate venv: 
 ```
 source /venv/jax-ViT/bin/activate
 ```
-→ Upgrade pip before installing required package : 
+→ Upgrade pip before installing required package: 
 ```
 python -m pip install --upgrade pip
 ```
-→ Install required package for jax-ViT into the venv :
+→ Install required package for jax-ViT into the venv:
 ``` 
 pip3 install -r vit_jax/requirements.txt
 ```
-→ Install jax-GPU version : 
+→ Install jax-GPU version: 
 ```
 pip install --upgrade jax jaxlib==0.1.61+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html
 ```
-(“cuda110” → means cuda v.11.0 : change this according to the cuda version in your computer)
-→ Clone Github code : 
+(“cuda110” → means cuda v.11.0: change this according to the cuda version in your computer)
+→ Clone Github code: 
 ```
 git clone https://github.com/Thanusan19/Vision_Transformer.git
 ```
@@ -77,9 +77,9 @@ We ended having multiple branches depending on the use. The first one correspond
 
 Here are the general settings to check in the various implementations:
 - First make sure that `FINE_TUNE = True` in order to do fine-tuning
-- Set the following parameter in order to enable inference: `INFERENCE = True`. Also set the checkpoint's filepath  in : `params = checkpoint.load('../models/model_diatom_final_checkpoints.npz')`
-- If you want to train without the fine-tuned weights, use: `LOAD_FINE_TUNNED_CHECKPOINTS = False`. Also set the checkpoint's filepath : `checkpoints_file_path = "../models/model_diatom_checkpoint_step_6000_with_data_aug.npz"`
-- Test a saved checkpoint accuracy by setting the following parameter: `CHECKPOINTS_TEST = True`. Also set the checkpoint's filepath : `  checkpoints_file_path = "../models/model_diatom_final_checkpoints.npz"`
+- Set the following parameter in order to enable inference: `INFERENCE = True`. Also set the checkpoint's filepath  in: `params = checkpoint.load('../models/model_diatom_final_checkpoints.npz')`
+- If you want to train without the fine-tuned weights, use: `LOAD_FINE_TUNNED_CHECKPOINTS = False`. Also set the checkpoint's filepath: `checkpoints_file_path = "../models/model_diatom_checkpoint_step_6000_with_data_aug.npz"`
+- Test a saved checkpoint accuracy by setting the following parameter: `CHECKPOINTS_TEST = True`. Also set the checkpoint's filepath: `  checkpoints_file_path = "../models/model_diatom_final_checkpoints.npz"`
 - Choose the ViT model to train on with the `model` parameter. The basic model to use could be `model = 'ViT-B_16'`. See branch specific instructions for more details. 
 - Choose the dataset to load, e.g: `DATASET = 2`. Choose the dataset between:
   - `0` for CIFAR-10,
@@ -127,7 +127,7 @@ __NB:__ Make sure you have activated the virtual environment before launching. (
 
 ### 2. `cnn_model`
 This branch was used to test different convolution layers and PCA as feature extractor in the ViT hybrid model.
-First of all check the following parameters : 
+First of all check the following parameters: 
 - `model = 'ViT-B_16'`
 - Set `SAVE_IMG = True` to save feature extractor's input and output.
 Then activate the code associated to the wanted feature extractor to `True` in `vit_jax/vit_jax.py` file.
@@ -135,6 +135,6 @@ Then activate the code associated to the wanted feature extractor to `True` in `
 ### 3. `resnet_vit`
 
 This branch was used to test Resnet50 model as feature extractor in the ViT hybrid model.
-Check if the following parameters are set in "vit_jax/vit_jax.py" : 
+Check if the following parameters are set in "vit_jax/vit_jax.py": 
 - `model = 'R50+ViT-B_16'`
 - `doDataAugmentation=False`
