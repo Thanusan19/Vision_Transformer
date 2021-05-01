@@ -1,7 +1,7 @@
 # Vision Transformer : Diatom Dataset
 by SATHIAKUMAR Thanusan and BERNARD Guillaume based on Google's ViT implemtentation.
 
-Note: This repository was forked and modified from [google-research/big_transfer](https://github.com/google-research/big_transfer).
+Note: This repository was forked and modified from [google-research/vision_transformer](https://github.com/google-research/vision_transformer).
 
 ## Introduction
 
@@ -11,8 +11,6 @@ We worked at Georgia Tech Lorraine with the DREAM research team, a robotic labor
 
 This technique called Vision Transformer was published in the folowing paper : 
 [An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale](https://arxiv.org/abs/2010.11929).
-
-![Figure 1 from paper](figure1.png)https://github.com/Thanusan19/Vision_Transformer.git
 
 Overview of the model given by Google: we split an image into fixed-size patches, linearly embed each of them, add position embeddings, and feed the resulting sequence of vectors to a standard Transformer encoder. In order to perform classification, we use the standard approach of adding an extra learnable "classification token" to the sequence.
 
