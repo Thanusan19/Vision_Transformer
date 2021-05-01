@@ -120,7 +120,7 @@ python vit_jax.py
 ```
 __NB:__ Make sure you have activated the virtual environment before launching. (e.g. `source /venv/jax-ViT/bin/activate`)
 
-### 1. `dog_cat_GPU_split`
+### 1. `main`
 
 - In the file `vit_jax/vit_jax.py`, to train with the basic ViT model we used: `model = 'ViT-B_16'`
 - In the file `vit_jax/ViT_python_generator.py`, inside the definition of the `_generator()` method, you can uncomment and change the code for the actual data augmentation of the images. There are still comments of code that could do image translation, rotation, etc.
